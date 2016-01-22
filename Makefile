@@ -1,7 +1,5 @@
-CC=gcc
-
 unsf:
-	gcc -g -O2 -o unsf unsf.c -lm
+	cc -g -O2 -o unsf unsf.c -lm
 install: unsf
 	install unsf $(DESTDIR)/usr/bin/
 uninstall:
