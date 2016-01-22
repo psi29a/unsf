@@ -1,0 +1,145 @@
+.TH UNSF 1 "Version 0.0.1, 19th Sept 2004"
+
+
+.SH NAME 
+unsf - break up SoundFont .sf2 files into GUS-type instrument patches.
+
+
+.SH SYNOPSIS
+.B unsf [-v|-s|-m|-d|-n|-V] \fBsoundfont-file\fR
+
+
+.SH DESCRIPTION
+
+Unsf is a tool to convert SoundFont files into GUS patches.  Some reasons
+you might want to do such a thing are: (1) Your midi player can use
+GUS patches but doesn't know how to read soundfonts, (2) You want a
+convenient way of substituting patches or reassigning banks of 
+instruments by editing GUS config files, or (3) You need to modify
+patches by changing amplitude, stripping envelopes, or make other
+changes that can easily be done by attaching options in config
+files.  Or (4), my own reason, you might need to use a version
+of timidity covered under the Lessor GNU Public License and find
+that the versions of timidity that can read soundfonts are protected
+by the more restrictive GNU Public License (e.g., Timidity++ or
+kmidi, or the Alsaplayer midi plugin).
+
+Instrument samples embedded in soundfonts have a more complicated
+structure, and have more features, than GUS patches.  So breaking
+a soundfont up into GUS patches loses information and quality,
+unless the GUS patch format is extended.  The patch files produced
+by unsf do contain most of the information and structure they had as
+part of the original soundfont, but the extensions to GUS format
+are tucked away in hidden places, as they must be, to be compatible
+with programs expecting to see ordinary GUS patches.  I'll describe
+the extensions below.
+
+Unsf is easy to use.  If you're using a version of timidity, just put
+a soundfont into the directory where you keep patches -- perhaps
+/usr/local/lib/timidity -- then cd to that directory and say
+"unsf filename.sf2".  Unsf will create directories for each bank
+of instruments in the soundfont and put the patch files for all
+the instruments into the appropriate bank directories.  The names
+of the directories and patch files are derived from the names they
+were given inside the soundfont.  Unsf also creates a GUS type
+configuration file, which will be called "<filename>.cfg", the
+<filename> part coming from the name of the original soundfont.
+Edit timidity.cfg by adding the line "source <filename>.cfg" and
+you're ready to use the new patches.
+
+However, you won't hear any of the enhancements of sf2 instruments,
+unless you use my reference version of timidity, because no other
+midi players as yet know how to find the special information in
+the extended GUS patch files.  How could there be any?  I just
+made up this extension to GUS patch structure.  What you will
+hear is only the keyrange set of samples for the left channel
+of the first velocity layer.  Sf2 instruments can have several
+velocity layers, meaning sets of samples tuned for the different
+timbres produced by different note loudness, and they can also
+be in stereo, with different sets of samples for the left and
+right channels.
+
+
+This diagram describes the overall structure of sf2 instruments
+and extended GUS patches:
+
+.nf
+                                                key range 1   sample |GUS
+                                left channel    key range 2   sample |compatible
+             velocity range 1                   ...                  |part
+                                                key range 1   sample
+                                right channel   key range 2   sample
+                                                        ...
+
+                                left channel    ...
+Instrument   velocity range 2
+                                right channel   ...
+
+             velocity range 3   ...
+
+             ...
+
+             velocity range 19  ...
+.fi
+
+In addition to the extra sets of samples for various velocity (loudness)
+ranges and for left and right channels, sf2 instruments have parameters
+for controlling an extra low frequency modulator and a bandpass
+filter.  These parameters are also carried over into the extended
+GUS patches produced by unsf.  My reference version of timidity does
+not interpret and use all this extra information, by any means, but
+it does understand velocity ranges, stereo instruments, and a couple
+of the extra sf2 parameters: volume-envelope-delay and exclusive-class.
+The first delays the beginning of note volume envelopes by a variable
+amount, and the second causes notes of certain instruments to be
+terminated when a new note of that instrument or an instrument in the
+same class is begun.
+
+My reference version of timidity is the one contained the the SDL_mixer
+library of the gaming program library SDL (Simple Direct Layer),
+http://www.libsdl.org.  As of now (Sept 2004) only the CVS version
+of SDL_mixer has my version of timidity.  My patches for the latest
+released version are in the archive:
+.RS
+        ftp://ling.lll.hawaii.edu/pub/greg/Surround-SDL.tgz
+.RE
+I have also made a free standing demo version of timidity, which
+is in:
+.RS
+        ftp://ling.lll.hawaii.edu/pub/greg/gt-0.3.tar.gz
+.RE
+
+.SH OPTIONS
+
+.TP
+.B \-s
+Small.  Extract only a single velocity layer.
+.TP
+.B \-m
+Mono.  Extract only the left channel of stereo patches.
+.TP
+.B \-d
+Drum.  Assume the sf2 file is a drum kit, even though it is
+not marked as such in the soundfont, so that individual notes
+are broken out into separate drum patches.
+.TP
+.B \-n
+No write.  Don't write out patches or directories.
+.TP
+.B \-V
+Do not normalize sample volumes (it's time-consuming).
+.TP
+.B \-F
+Adjust sustain by guessing which looping patches should be
+continued until note is released.
+.TP
+.B \-v
+Verbose.
+
+.SH AUTHORS
+
+Greg Lee <greg@ling.lll.hawaii.edu>
+.br
+SoundFont loader based on code provided by George Foot.
+.br
+SoundFont file extension written by Takashi Iwai <iwai@dragon.mm.t.u-tokyo.ac.jp>
