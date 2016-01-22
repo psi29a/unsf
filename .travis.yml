@@ -1,0 +1,38 @@
+language: c
+
+sudo: required
+
+dist: trusty
+
+os:
+ - linux
+ - osx
+
+compiler:
+ - clang
+ - gcc
+
+env:
+ - ANALYZE=false
+ - ANALYZE=true
+
+matrix:
+ exclude:
+  - os: osx
+    env: ANALYZE=true
+
+before_install:
+ - '[[ "$TRAVIS_OS_NAME" != "linux" ]] || sudo apt-get update -qq'
+
+install:
+ - '[[ "$TRAVIS_OS_NAME" != linux ]] || sudo apt-get -qy install clang cppcheck'
+
+script:
+ - ./.travis.sh
+
+notifications:
+  recipients:
+    - psi29a+travis-ci@gmail.com
+  email:
+    on_success: change
+    on_failure: always
