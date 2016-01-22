@@ -60,6 +60,7 @@
    are not required to do this. We trust you not to abuse our generosity.
 */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
