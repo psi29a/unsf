@@ -6,7 +6,8 @@ unsf - break up SoundFont .sf2 files into GUS-type instrument patches.
 
 
 .SH SYNOPSIS
-.B unsf [-v|-s|-m|-d|-n|-V] \fBsoundfont-file\fR
+.B unsf
+[\fI-v|-s|-m|-d|-n|-V\fR] [\fI-M <bank>:<instrument>=<layer>\fR] [\fI-D <bank>:<instrument>=<layer>\fR] \fBsoundfont-file\fR
 
 
 .SH DESCRIPTION
@@ -135,6 +136,15 @@ continued until note is released.
 .TP
 .B \-v
 Verbose.
+.TP
+.B \-M \fI<bank>:<instrument>=<layer>\fR
+Make the given velocity \fIlayer\fR the default for \fIbank:instrument\fR,
+this affects programs which do not know how to handle the extended GUS patch
+format, as they will always play the default layer, and this determines which
+layer gets written when using \fB-s\fR.
+.TP
+.B \-D \fI<bank>:<instrument>=<layer>\fR
+Same as \fB-M\fR but for drum banks.
 
 .SH AUTHORS
 

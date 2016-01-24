@@ -101,6 +101,11 @@ typedef struct VelocityRangeList
    unsigned char other_patches[128];
 } VelocityRangeList;
 
+/* manually set the velocity of either a instrument or drum since most
+   applications do not know about the extended patch format. */
+static signed char melody_velocity_override[128][128];
+static signed char drum_velocity_override[128][128];
+
 static int opt_8bit = FALSE;
 static int opt_verbose = FALSE;
 static int opt_veryverbose = FALSE;
@@ -2981,6 +2986,8 @@ static void sort_velocity_layers(void)
 						width = vlist->velmax[k] - vlist->velmin[k];
 					}
 				}
+				if (melody_velocity_override[i][j] != -1)
+					widest = melody_velocity_override[i][j];
 				if (widest) {
 					velmin = vlist->velmin[0];
 					velmax = vlist->velmax[0];
@@ -3021,6 +3028,8 @@ static void sort_velocity_layers(void)
 						width = vlist->velmax[k] - vlist->velmin[k];
 					}
 				}
+				if (drum_velocity_override[i][j] != -1)
+					widest = drum_velocity_override[i][j];
 				if (widest) {
 					velmin = vlist->velmin[0];
 					velmax = vlist->velmax[0];
@@ -3664,8 +3673,12 @@ int main(int argc, char *argv[])
 	int i, c;
 	char cfgname[80];
 	char *inname;
+	char *sep1, *sep2;
 
-	while ((c = getopt (argc, argv, "FVvnsdm")) > 0)
+	memset(melody_velocity_override, -1, 128*128);
+	memset(drum_velocity_override, -1, 128*128);
+
+	while ((c = getopt (argc, argv, "FVvnsdmM:D:")) > 0)
 		switch (c) {
 			case 'v':
 	    			opt_verbose = 1;
@@ -3688,13 +3701,33 @@ int main(int argc, char *argv[])
 			case 'V':
 	    			opt_adjust_volume = 0;
 	    			break;
+			case 'M':
+				sep1 = strchr(optarg, ':');
+				sep2 = strchr(optarg, '=');
+				if (sep1 && sep2)
+				{
+				  melody_velocity_override[atoi(optarg)]
+				    [atoi(sep1 + 1)] = atoi(sep2 + 1);
+				  break;
+				} /* if missing, fall through */
+			case 'D':
+				sep1 = strchr(optarg, ':');
+				sep2 = strchr(optarg, '=');
+				if (sep1 && sep2)
+				{
+				  drum_velocity_override[atoi(optarg)]
+				    [atoi(sep1 + 1)] = atoi(sep2 + 1);
+				  break;
+				} /* if missing, fall through */
 			default:
-				fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] filename\n");
+				fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] [-M <bank>:<instrument>=<layer>]\n"
+						"  [-D <bank>:<instrument>=<layer>] <filename>\n");
 				return 1;
 		}
 
 	if (argc - optind != 1) {
-		fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] filename\n");
+		fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] [-M <bank>:<instrument>=<layer>]\n"
+		                "  [-D <bank>:<instrument>=<layer>] <filename>\n");
 		exit(1);
 	}
 
