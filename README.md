@@ -10,4 +10,9 @@ Some reasons you might want to do such a thing are:
  * You want a convenient way of substituting patches or reassigning banks of instruments by editing GUS config files
  * You need to modify patches by changing amplitude, stripping envelopes, or make other changes that can easily be done by attaching options in config files.
 
-License: zlib
+License: MIT License (Expat)
+
+History
+=======
+
+unsf.c is derived from the Allegro tool pat2dat.c, and uses, presumably, the part of that program which was written originally by George Foot. Also, some code is adapted from routines in sndfont.c.
