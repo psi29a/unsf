@@ -5,60 +5,16 @@
  *
  * compile: cc -o unsf unsf.c -lm
  *
- * Credits:
- * unsf.c is derived from the Allegro tool pat2dat.c, and
- * uses, presumably, the part of that program which was written
- * originally by George Foot.  The original file intro of pat2dat.c
- * and information on copyright is given below.  Also, some code
- * is adapted from routines in sndfont.c, whose header has
- * the notice:
- *================================================================
- * SoundFont file extension
- *      written by Takashi Iwai <iwai@dragon.mm.t.u-tokyo.ac.jp>
- *================================================================*
+ * license: cc0
  *
+ * To the extent possible under law, the person who associated CC0 with
+ * unsf has waived all copyright and related or neighboring rights
+ * to unsf.
  *
- * 						Greg Lee, 6/25/04
+ * You should have received a copy of the CC0 legalcode along with this
+ * work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+ *
  */
-
-
-/*         ______   ___    ___
- *        /\  _  \ /\_ \  /\_ \ 
- *        \ \ \L\ \\//\ \ \//\ \      __     __   _ __   ___ 
- *         \ \  __ \ \ \ \  \ \ \   /'__`\ /'_ `\/\`'__\/ __`\
- *          \ \ \/\ \ \_\ \_ \_\ \_/\  __//\ \L\ \ \ \//\ \L\ \
- *           \ \_\ \_\/\____\/\____\ \____\ \____ \ \_\\ \____/
- *            \/_/\/_/\/____/\/____/\/____/\/___L\ \/_/ \/___/
- *                                           /\____/
- *                                           \_/__/
- *
- *      MIDI patch (for DIGMID) grabbing utility for the Allegro library.
- *
- *      By Shawn Hargreaves.
- *
- *      SoundFont loader based on code provided by George Foot.
- *
- *      See readme.txt for copyright information.
- */
-
-/*
- * (The above mentioned file readme.txt has the following about copyright:)
-===================================
-============ Copyright ============
-===================================
-
-   Allegro is gift-ware. It was created by a number of people working in 
-   cooperation, and is given to you freely as a gift. You may use, modify, 
-   redistribute, and generally hack it about in any way you like, and you do 
-   not have to give us anything in return. However, if you like this product 
-   you are encouraged to thank us by making a return gift to the Allegro 
-   community. This could be by writing an add-on package, providing a useful 
-   bug report, making an improvement to the library, or perhaps just 
-   releasing the sources of your program so that other people can learn from 
-   them. If you redistribute parts of this code or make a game using it, it 
-   would be nice if you mentioned Allegro somewhere in the credits, but you 
-   are not required to do this. We trust you not to abuse our generosity.
-*/
 
 #include <ctype.h>
 #include <stdio.h>

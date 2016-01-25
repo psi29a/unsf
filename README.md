@@ -3,6 +3,7 @@ UnSF
 
 [![Build Status](https://img.shields.io/travis/psi29a/unsf.svg)](https://travis-ci.org/psi29a/unsf)
 
+
 UnSF is a tool to convert SoundFont (sf2) files into GUS patches.  
 
 Some reasons you might want to do such a thing are: 
@@ -10,9 +11,9 @@ Some reasons you might want to do such a thing are:
  * You want a convenient way of substituting patches or reassigning banks of instruments by editing GUS config files
  * You need to modify patches by changing amplitude, stripping envelopes, or make other changes that can easily be done by attaching options in config files.
 
-License: MIT License (Expat)
+License: CC0 - 1.0
 
 History
 =======
 
-unsf.c is derived from the Allegro tool pat2dat.c, and uses, presumably, the part of that program which was written originally by George Foot. Also, some code is adapted from routines in sndfont.c.
+unsf.c is derived from the Allegro tool pat2dat.c, and uses, presumably, the part of that program which was written originally by George Foot. Also, some code is adapted from routines in sndfont.c. All of which was original under the Allegro "beerware" license.
