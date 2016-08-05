@@ -400,6 +400,60 @@ static void print_sf_string(FILE *f, char *title, int opt_no_write)
     if (!opt_no_write) fprintf(cfg_fd, "# %-12s%s\n", title, buf);
 }
 
+static char *getname(char *p)
+{
+    int i, j, e;
+    static char buf[21];
+    strncpy(buf, p, 20);
+    buf[20] = 0;
+    for (i = 19; i > 4 && buf[i]==' '; i--) {
+        buf[i] = 0;
+    }
+    e = i + 1;
+    if (e < 5) return buf;
+    for (i = 0; i < e; i++) {
+        if (buf[i] == '/') {
+            if (i) buf[i] = '.';
+            else buf[i] = ' ';
+        }
+        else if (buf[i] == '\\') buf[i] = ' ';
+        else if (buf[i] == '#') buf[i] = ' ';
+        else if (buf[i] == '|') buf[i] = ' ';
+        else if (buf[i] == '&') buf[i] = ' ';
+        else if (buf[i] == '*') buf[i] = ' ';
+        else if (buf[i] == '!') buf[i] = ' ';
+        else if (buf[i] == '\'') buf[i] = ' ';
+        else if (buf[i] == '"') buf[i] = ' ';
+        else if (buf[i] == '?') buf[i] = ' ';
+        else if (buf[i] == '~') buf[i] = ' ';
+        else if (buf[i] == '[') buf[i] = '-';
+        else if (buf[i] == ']') buf[i] = ' ';
+        else if (buf[i] == '(') buf[i] = '-';
+        else if (buf[i] == ')') buf[i] = ' ';
+    }
+    for (i = 0; i < e; i++) {
+        if (buf[i] == ' ') {
+            for (j = i; j < e; j++)
+                buf[j] = buf[j+1];
+            e--;
+        }
+    }
+    for (i = 0; i < e; i++) {
+        if (buf[i] == ' ') {
+            for (j = i; j < e; j++)
+                buf[j] = buf[j+1];
+            e--;
+        }
+    }
+    e = strlen(buf);
+    while (e > 3 && buf[e-1] == ' ') {
+        buf[e-1] = '\0';
+        e--;
+    }
+    return buf;
+}
+
+
 
 /* gets facts and names */
 static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPresetHeader *sf_presets,

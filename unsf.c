@@ -183,60 +183,6 @@ double bend_coarse[128] = {
  1290.1591550923506, 1366.8760106701147, 1448.1546878700494, 1534.2664467217226
 };
 
-static char *getname(char *p)
-{
-	int i, j, e;
-	static char buf[21];
-	strncpy(buf, p, 20);
-	buf[20] = 0;
-	for (i = 19; i > 4 && buf[i]==' '; i--) {
-	  buf[i] = 0;
-	}
-	e = i + 1;
-	if (e < 5) return buf;
-	for (i = 0; i < e; i++) {
-	  if (buf[i] == '/') {
-		  if (i) buf[i] = '.';
-		  else buf[i] = ' ';
-	  }
-	  else if (buf[i] == '\\') buf[i] = ' ';
-	  else if (buf[i] == '#') buf[i] = ' ';
-	  else if (buf[i] == '|') buf[i] = ' ';
-	  else if (buf[i] == '&') buf[i] = ' ';
-	  else if (buf[i] == '*') buf[i] = ' ';
-	  else if (buf[i] == '!') buf[i] = ' ';
-	  else if (buf[i] == '\'') buf[i] = ' ';
-	  else if (buf[i] == '"') buf[i] = ' ';
-	  else if (buf[i] == '?') buf[i] = ' ';
-	  else if (buf[i] == '~') buf[i] = ' ';
-	  else if (buf[i] == '[') buf[i] = '-';
-	  else if (buf[i] == ']') buf[i] = ' ';
-	  else if (buf[i] == '(') buf[i] = '-';
-	  else if (buf[i] == ')') buf[i] = ' ';
-	}
-	for (i = 0; i < e; i++) {
-	  if (buf[i] == ' ') {
-	    for (j = i; j < e; j++)
-	      buf[j] = buf[j+1];
-	    e--;
-	  }
-	}
-	for (i = 0; i < e; i++) {
-	  if (buf[i] == ' ') {
-	    for (j = i; j < e; j++)
-	      buf[j] = buf[j+1];
-	    e--;
-	  }
-	}
-	e = strlen(buf);
-	while (e > 3 && buf[e-1] == ' ') {
-		buf[e-1] = '\0';
-		e--;
-	}
-	return buf;
-}
-
-
 
 /* scratch buffer for generating new patch files */
 static unsigned char *mem = NULL;
