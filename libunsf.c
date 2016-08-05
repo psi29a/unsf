@@ -401,6 +401,290 @@ static void print_sf_string(FILE *f, char *title, int opt_no_write)
 }
 
 
+/* gets facts and names */
+static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPresetHeader *sf_presets,
+                                sfPresetBag * sf_preset_indexes, sfGenList *sf_preset_generators,
+                                sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
+                                sfGenList * sf_instrument_generators, sfSample * sf_samples
+)
+{
+    sfPresetHeader *pheader;
+    sfPresetBag *pindex;
+    sfGenList *pgen;
+    sfInst *iheader;
+    sfInstBag *iindex;
+    sfGenList *igen;
+    sfSample *sample;
+    int pindex_count;
+    int pgen_count;
+    int iindex_count;
+    int igen_count;
+    int pnum, inum, jnum, lnum, num, drum;
+    int wanted_patch, wanted_bank;
+    int keymin, keymax, drumnum;
+    int velmin, velmax;
+    int i, j;
+    char *s;
+    char tmpname[80];
+
+    for (i = 0; i < 128; i++) {
+        tonebank[i] = FALSE;
+        drumset_name[i] = NULL;
+        drumset_short_name[i] = NULL;
+        for (j = 0; j < 128; j++) {
+            voice_name[i][j] = NULL;
+            voice_samples_mono[i][j] = 0;
+            voice_samples_left[i][j] = 0;
+            voice_samples_right[i][j] = 0;
+            voice_velocity[i][j] = NULL;
+            drum_name[i][j] = NULL;
+            drum_samples_mono[i][j] = 0;
+            drum_samples_left[i][j] = 0;
+            drum_samples_right[i][j] = 0;
+            drum_velocity[i][j] = NULL;
+        }
+    }
+
+    keymin = 0;
+    keymax = 127;
+
+    /* search for the desired preset */
+    for (pnum=0; pnum<sf_num_presets; pnum++) {
+        int global_preset_layer, global_preset_velmin, global_preset_velmax, preset_velmin, preset_velmax;
+        int global_preset_keymin, global_preset_keymax, preset_keymin, preset_keymax;
+
+        pheader = &sf_presets[pnum];
+
+
+        wanted_patch = pheader->wPreset;
+        wanted_bank = pheader->wBank;
+
+        if (wanted_bank == 128 || options.opt_drum) {
+            drum = TRUE;
+            options.opt_drum_bank = wanted_patch;
+        }
+        else {
+            drum = FALSE;
+            options.opt_bank = wanted_bank;
+        }
+
+        /* find what substructures it uses */
+        pindex = &sf_preset_indexes[pheader->wPresetBagNdx];
+        pindex_count = pheader[1].wPresetBagNdx - pheader[0].wPresetBagNdx;
+
+        if (pindex_count < 1)
+            continue;
+
+        /* prettify the preset name */
+        s = getname(pheader->achPresetName);
+
+        if (drum) {
+            if (!drumset_name[options.opt_drum_bank]) {
+                drumset_short_name[options.opt_drum_bank] = strdup(s);
+                sprintf(tmpname, "%s-%s", basename, s);
+                drumset_name[options.opt_drum_bank] = strdup(tmpname);
+                if (options.opt_verbose) printf("drumset #%d %s\n", options.opt_drum_bank, s);
+            }
+        }
+        else {
+            if (!voice_name[options.opt_bank][wanted_patch]) {
+                voice_name[options.opt_bank][wanted_patch] = strdup(s);
+                if (options.opt_verbose) printf("bank #%d voice #%d %s\n", options.opt_bank, wanted_patch, s);
+                tonebank[options.opt_bank] = TRUE;
+            }
+        }
+
+        global_preset_velmin = preset_velmin = -1;
+        global_preset_velmax = preset_velmax = -1;
+        global_preset_keymin = preset_keymin = -1;
+        global_preset_keymax = preset_keymax = -1;
+
+        /* for each layer in this preset */
+        for (inum=0; inum<pindex_count; inum++) {
+            int global_instrument_layer, global_instrument_velmin, global_instrument_velmax,
+                    instrument_velmin, instrument_velmax;
+            int global_instrument_keymin, global_instrument_keymax,
+                    instrument_keymin, instrument_keymax;
+
+            pgen = &sf_preset_generators[pindex[inum].wGenNdx];
+            pgen_count = pindex[inum+1].wGenNdx - pindex[inum].wGenNdx;
+
+            if (pgen_count > 0 && pgen[pgen_count-1].sfGenOper != SFGEN_instrument)
+                global_preset_layer = TRUE;
+            else global_preset_layer = FALSE;
+
+            if (global_preset_velmin >= 0) preset_velmin = global_preset_velmin;
+            if (global_preset_velmax >= 0) preset_velmax = global_preset_velmax;
+            if (global_preset_keymin >= 0) preset_keymin = global_preset_keymin;
+            if (global_preset_keymax >= 0) preset_keymax = global_preset_keymax;
+
+            if (pgen_count < 0) break;
+
+            if (pgen[0].sfGenOper == SFGEN_keyRange) {
+                preset_keymin = pgen[0].genAmount.ranges.byLo;
+                preset_keymax = pgen[0].genAmount.ranges.byHi;
+                if (global_preset_layer) {
+                    global_preset_keymin = preset_keymin;
+                    global_preset_keymax = preset_keymax;
+                }
+            }
+
+            for (jnum=0; jnum<pgen_count; jnum++) {
+                if (pgen[jnum].sfGenOper == SFGEN_velRange) {
+                    preset_velmin = pgen[jnum].genAmount.ranges.byLo;
+                    preset_velmax = pgen[jnum].genAmount.ranges.byHi;
+                    if (global_preset_layer) {
+                        global_preset_velmin = preset_velmin;
+                        global_preset_velmax = preset_velmax;
+                    }
+                }
+            }
+
+            /* find what instrument we should use */
+            if ((pgen_count > 0) &&
+                (pgen[pgen_count-1].sfGenOper == SFGEN_instrument)) {
+
+                iheader = &sf_instruments[pgen[pgen_count-1].genAmount.wAmount];
+
+                iindex = &sf_instrument_indexes[iheader->wInstBagNdx];
+                iindex_count = iheader[1].wInstBagNdx - iheader[0].wInstBagNdx;
+
+                global_instrument_velmin = instrument_velmin = -1;
+                global_instrument_velmax = instrument_velmax = -1;
+                global_instrument_keymin = instrument_keymin = -1;
+                global_instrument_keymax = instrument_keymax = -1;
+
+
+                /* for each layer in this instrument */
+                for (lnum=0; lnum<iindex_count; lnum++) {
+                    igen = &sf_instrument_generators[iindex[lnum].wInstGenNdx];
+                    igen_count = iindex[lnum+1].wInstGenNdx - iindex[lnum].wInstGenNdx;
+
+                    if (global_instrument_velmin >= 0) instrument_velmin = global_instrument_velmin;
+                    if (global_instrument_velmax >= 0) instrument_velmax = global_instrument_velmax;
+                    if (global_instrument_keymin >= 0) instrument_keymin = global_instrument_keymin;
+                    if (global_instrument_keymax >= 0) instrument_keymax = global_instrument_keymax;
+
+                    if ((igen_count > 0) &&
+                        (igen[igen_count-1].sfGenOper != SFGEN_sampleID))
+                        global_instrument_layer = TRUE;
+                    else global_instrument_layer = FALSE;
+
+
+                    for (jnum=0; jnum<igen_count; jnum++) {
+                        if (igen[jnum].sfGenOper == SFGEN_velRange) {
+                            instrument_velmax = igen[jnum].genAmount.ranges.byHi;
+                            instrument_velmin = igen[jnum].genAmount.ranges.byLo;
+                            if (global_instrument_layer) {
+                                global_instrument_velmin = instrument_velmin;
+                                global_instrument_velmax = instrument_velmax;
+                            }
+                        }
+                    }
+
+                    if (igen_count > 0 && igen[0].sfGenOper == SFGEN_keyRange) {
+                        instrument_keymax = igen[0].genAmount.ranges.byHi;
+                        instrument_keymin = igen[0].genAmount.ranges.byLo;
+                        if (global_instrument_layer) {
+                            global_instrument_keymin = instrument_keymin;
+                            global_instrument_keymax = instrument_keymax;
+                        }
+                    }
+
+
+                    if (instrument_velmin >= 0) velmin = instrument_velmin;
+                    else velmin = 0;
+                    if (instrument_velmax >= 0) velmax = instrument_velmax;
+                    else velmax = 127;
+                    if (preset_velmin >= 0 && preset_velmax >= 0) {
+                        if (preset_velmin >= velmin && preset_velmax <= velmax) {
+                            velmin = preset_velmin;
+                            velmax = preset_velmax;
+                        }
+                    }
+
+                    if (instrument_keymin >= 0) keymin = instrument_keymin;
+                    else keymin = 0;
+                    if (instrument_keymax >= 0) keymax = instrument_keymax;
+                    else keymax = 127;
+                    if (preset_keymin >= 0 && preset_keymax >= 0) {
+                        if (preset_keymin >= keymin && preset_keymax <= keymax) {
+                            keymin = preset_keymin;
+                            keymax = preset_keymax;
+                        }
+                    }
+
+                    drumnum = keymin;
+
+                    /* find what sample we should use */
+                    if ((igen_count > 0) &&
+                        (igen[igen_count-1].sfGenOper == SFGEN_sampleID)) {
+                        int i;
+
+                        sample = &sf_samples[igen[igen_count-1].genAmount.wAmount];
+
+                        /* sample->wSampleLink is the link?? */
+                        /* lsample = &sf_samples[sample->wSampleLink] */
+                        if (sample->sfSampleType & LINKED_SAMPLE) {
+                            printf("linked sample: link is %d\n", sample->wSampleLink);
+                        }
+
+                        if (sample->sfSampleType & LINKED_SAMPLE) continue; /* linked */
+
+                        s = sample->achSampleName;
+                        i = strlen(s)-1;
+
+                        if (s[i] == 'L') sample->sfSampleType = LEFT_SAMPLE;
+                        if (s[i] == 'R') sample->sfSampleType = RIGHT_SAMPLE;
+
+                        /* prettify the sample name */
+                        s = getname(sample->achSampleName);
+
+                        if (sample->sfSampleType & 0x8000) {
+                            printf("This SoundFont uses AWE32 ROM data in sample %s\n", s);
+                            if (options.opt_veryverbose)
+                                printf("\n");
+                            continue;
+                        }
+
+                        if (drum) {
+                            int pool_num;
+                            for (pool_num = keymin; pool_num <= keymax; pool_num++) {
+                                drumnum = pool_num;
+                                if (!drum_name[options.opt_drum_bank][drumnum]) {
+                                    drum_name[options.opt_drum_bank][drumnum] = strdup(s);
+                                    if (options.opt_verbose) printf("drumset #%d drum #%d %s\n", options.opt_drum_bank, drumnum, s);
+                                }
+                                if (sample->sfSampleType == LEFT_SAMPLE)
+                                    drum_samples_left[options.opt_drum_bank][drumnum]++;
+                                else if (sample->sfSampleType == RIGHT_SAMPLE)
+                                    drum_samples_right[options.opt_drum_bank][drumnum]++;
+                                else drum_samples_mono[options.opt_drum_bank][drumnum]++;
+                                record_velocity_range(drum, options.opt_drum_bank, drumnum,
+                                                      velmin, velmax, sample->sfSampleType);
+                            }
+                        }
+                        else {
+                            if (sample->sfSampleType == LEFT_SAMPLE)
+                                voice_samples_left[options.opt_bank][wanted_patch]++;
+                            else if (sample->sfSampleType == RIGHT_SAMPLE)
+                                voice_samples_right[options.opt_bank][wanted_patch]++;
+                            else voice_samples_mono[options.opt_bank][wanted_patch]++;
+                            record_velocity_range(0, options.opt_bank, wanted_patch,
+                                                  velmin, velmax, sample->sfSampleType);
+                        }
+                    }
+
+                }
+            }
+        }
+
+
+    }
+
+    return TRUE;
+}
+
 
 
 
@@ -730,7 +1014,8 @@ void add_soundfont_patches(UnSF_Options options)
         if (options.opt_verbose)
             printf("\n");
 
-        grab_soundfont_banks();
+        grab_soundfont_banks(options, sf_num_presets, sf_num_presets, sf_preset_indexes, sf_preset_generators,
+                             sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples);
         make_directories();
         sort_velocity_layers();
         shorten_drum_names();
@@ -780,3 +1065,4 @@ void add_soundfont_patches(UnSF_Options options)
         sf_samples = NULL;
     }
 }
+
