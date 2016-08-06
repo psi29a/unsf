@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "libunsf.h"
 
@@ -533,7 +535,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
     int pgen_count;
     int iindex_count;
     int igen_count;
-    int pnum, inum, jnum, lnum, num, drum;
+    int pnum, inum, jnum, lnum, drum;
     int wanted_patch, wanted_bank;
     int keymin, keymax, drumnum;
     int velmin, velmax;
@@ -798,6 +800,386 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
 
     return TRUE;
 }
+
+static void make_directories(UnSF_Options options)
+{
+    int i, rcode, tonebank_count = 0;
+    char tmpname[80];
+
+    printf("Making bank directories.\n");
+
+    for (i = 0; i < 128; i++) if (tonebank[i]) tonebank_count++;
+
+    for (i = 0; i < 128; i++) {
+        if (tonebank[i]) {
+            if (tonebank_count > 1) {
+                sprintf(tmpname, "%s-B%d", basename, i);
+                tonebank_name[i] = strdup(tmpname);
+            }
+            else tonebank_name[i] = strdup(basename);
+            if (options.opt_no_write) continue;
+            if ( (rcode = access(tonebank_name[i], R_OK|W_OK|X_OK)) )
+                rcode=mkdir(tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            if (rcode) {
+                fprintf(stderr, "Could not create directory %s\n", tonebank_name[i]);
+                exit(1);
+            }
+        }
+    }
+    if (options.opt_no_write) return;
+    for (i = 0; i < 128; i++) {
+        if (drumset_name[i]) {
+            if ( (rcode = access(drumset_name[i], R_OK|W_OK|X_OK)) )
+                rcode=mkdir(drumset_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            if (rcode) {
+                fprintf(stderr, "Could not create directory %s\n", drumset_name[i]);
+                exit(1);
+            }
+        }
+    }
+}
+
+
+static void sort_velocity_layers(void)
+{
+    int i, j, k, velmin, velmax, velcount, left_patches, right_patches, mono_patches;
+    int width, widest;
+    VelocityRangeList *vlist;
+
+
+    for (i = 0; i < 128; i++) {
+        if (tonebank[i]) {
+            for (j = 0; j < 128; j++) {
+                if (voice_name[i][j]) {
+                    vlist = voice_velocity[i][j];
+                    if (vlist) {
+                        velcount = vlist->range_count;
+                        widest = 0;
+                        width = vlist->velmax[0] - vlist->velmin[0];
+                        for (k = 1; k < velcount; k++) {
+                            if (vlist->velmax[k] - vlist->velmin[k] > width) {
+                                widest = k;
+                                width = vlist->velmax[k] - vlist->velmin[k];
+                            }
+                        }
+                        if (melody_velocity_override[i][j] != -1)
+                            widest = melody_velocity_override[i][j];
+                        if (widest) {
+                            velmin = vlist->velmin[0];
+                            velmax = vlist->velmax[0];
+                            mono_patches = vlist->mono_patches[0];
+                            left_patches = vlist->left_patches[0];
+                            right_patches = vlist->right_patches[0];
+
+                            vlist->velmin[0] = vlist->velmin[widest];
+                            vlist->velmax[0] = vlist->velmax[widest];
+                            vlist->mono_patches[0] = vlist->mono_patches[widest];
+                            vlist->left_patches[0] = vlist->left_patches[widest];
+                            vlist->right_patches[0] = vlist->right_patches[widest];
+
+                            vlist->velmin[widest] = velmin;
+                            vlist->velmax[widest] = velmax;
+                            vlist->mono_patches[widest] = mono_patches;
+                            vlist->left_patches[widest] = left_patches;
+                            vlist->right_patches[widest] = right_patches;
+                        }
+                    }
+                    else continue;
+                }
+            }
+        }
+    }
+    for (i = 0; i < 128; i++) {
+        if (drumset_name[i]) {
+            for (j = 0; j < 128; j++) {
+                if (drum_name[i][j]) {
+                    vlist = drum_velocity[i][j];
+                    if (vlist) {
+                        velcount = vlist->range_count;
+                        widest = 0;
+                        width = vlist->velmax[0] - vlist->velmin[0];
+                        for (k = 1; k < velcount; k++) {
+                            if (vlist->velmax[k] - vlist->velmin[k] > width) {
+                                widest = k;
+                                width = vlist->velmax[k] - vlist->velmin[k];
+                            }
+                        }
+                        if (drum_velocity_override[i][j] != -1)
+                            widest = drum_velocity_override[i][j];
+                        if (widest) {
+                            velmin = vlist->velmin[0];
+                            velmax = vlist->velmax[0];
+                            mono_patches = vlist->mono_patches[0];
+                            left_patches = vlist->left_patches[0];
+                            right_patches = vlist->right_patches[0];
+
+                            vlist->velmin[0] = vlist->velmin[widest];
+                            vlist->velmax[0] = vlist->velmax[widest];
+                            vlist->mono_patches[0] = vlist->mono_patches[widest];
+                            vlist->left_patches[0] = vlist->left_patches[widest];
+                            vlist->right_patches[0] = vlist->right_patches[widest];
+
+                            vlist->velmin[widest] = velmin;
+                            vlist->velmax[widest] = velmax;
+                            vlist->mono_patches[widest] = mono_patches;
+                            vlist->left_patches[widest] = left_patches;
+                            vlist->right_patches[widest] = right_patches;
+                        }
+                    }
+                    else continue;
+                }
+            }
+        }
+    }
+}
+
+static void shorten_drum_names(void)
+{
+    int i, j, velcount, right_patches;
+    VelocityRangeList *vlist;
+
+    for (i = 0; i < 128; i++) {
+        if (drumset_name[i]) {
+            for (j = 0; j < 128; j++) {
+                if (drum_name[i][j]) {
+                    vlist = drum_velocity[i][j];
+                    if (vlist) {
+                        velcount = vlist->range_count;  /* TODO: set but not used */
+                        right_patches = vlist->right_patches[0];
+                    }
+                    else {
+                        continue;
+                    }
+                    if (right_patches) {
+                        char *dnm = drum_name[i][j];
+                        int name_len = strlen(dnm);
+                        if (name_len > 4 && dnm[name_len-1] == 'L' &&
+                            dnm[name_len-2] == '-')
+                            dnm[name_len-2] = '\0';
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+static void make_patch_files(UnSF_Options options)
+{
+    int i, j, k, velcount, right_patches;
+    char tmpname[80];
+    FILE *pf;
+    VelocityRangeList *vlist;
+    int abort_this_one;
+    int wanted_velmin, wanted_velmax;
+
+    /* scratch buffer for generating new patch files */
+    unsigned char *mem = NULL;
+    int mem_size = 0;
+    int mem_alloced = 0;
+
+
+    printf("Melodic patch files.\n");
+    for (i = 0; i < 128; i++) {
+        abort_this_one = FALSE;
+        if (tonebank[i]) for (j = 0; j < 128; j++) if (voice_name[i][j]) {
+                    abort_this_one = FALSE;
+                    vlist = voice_velocity[i][j];
+                    if (vlist) velcount = vlist->range_count;
+                    else velcount = 1;
+                    if (options.opt_small) velcount = 1;
+                    options.opt_bank = i;
+                    options.opt_header = TRUE;
+                    for (k = 0; k < velcount; k++) {
+                        if (vlist) {
+                            wanted_velmin = vlist->velmin[k];
+                            wanted_velmax = vlist->velmax[k];
+                            right_patches = vlist->right_patches[k];
+                        }
+                        else {
+                            wanted_velmin = 0;
+                            wanted_velmax = 127;
+                            right_patches = voice_samples_right[i][j];
+                        }
+                        options.opt_left_channel = TRUE;
+                        options.opt_right_channel = FALSE;
+                        if (!grab_soundfont(j, FALSE, voice_name[i][j])) {
+                            fprintf(stderr, "Could not create patch %s for bank %s\n",
+                                    voice_name[i][j], tonebank_name[i]);
+                            fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
+                            if (voice_velocity[i][j]) free(voice_velocity[i][j]);
+                            voice_velocity[i][j] = NULL;
+                            abort_this_one = TRUE;
+                            break;
+                        }
+                        options.opt_header = FALSE;
+                        if (abort_this_one) continue;
+                        if (vlist) right_patches = vlist->right_patches[k];
+                        if (right_patches && !options.opt_mono) {
+                            options.opt_left_channel = FALSE;
+                            options.opt_right_channel = TRUE;
+                            if (!grab_soundfont(j, FALSE, voice_name[i][j])) {
+                                fprintf(stderr, "Could not create right patch %s for bank %s\n",
+                                        voice_name[i][j], tonebank_name[i]);
+                                fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
+                                if (voice_velocity[i][j]) free(voice_velocity[i][j]);
+                                voice_velocity[i][j] = NULL;
+                                abort_this_one = TRUE;
+                                break;
+                            }
+                        }
+                    }
+                    if (abort_this_one || options.opt_no_write) continue;
+                    sprintf(tmpname, "%s/%s.pat", tonebank_name[i], voice_name[i][j]);
+                    if (!(pf = fopen(tmpname, "wb"))) {
+                        fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
+                        if (voice_velocity[i][j]) free(voice_velocity[i][j]);
+                        voice_velocity[i][j] = NULL;
+                        continue;
+                    }
+                    if ( fwrite(mem, 1, mem_size, pf) != mem_size ) {
+                        fprintf(stderr, "\nCould not write to patch file %s\n", tmpname);
+                        if (voice_velocity[i][j]) free(voice_velocity[i][j]);
+                        voice_velocity[i][j] = NULL;
+                    }
+                    fclose(pf);
+                }
+    }
+    printf("\nDrum patch files.\n");
+    for (i = 0; i < 128; i++) {
+        abort_this_one = FALSE;
+        if (drumset_name[i]) for (j = 0; j < 128; j++) if (drum_name[i][j]) {
+                    abort_this_one = FALSE;
+                    vlist = drum_velocity[i][j];
+                    if (vlist) velcount = vlist->range_count;
+                    else velcount = 1;
+                    if (!vlist) fprintf(stderr, "Uh oh, drum #%d %s has no velocity list\n", i, drumset_name[i]);
+                    if (options.opt_small) velcount = 1;
+                    options.opt_drum_bank = i;
+                    options.opt_header = TRUE;
+                    for (k = 0; k < velcount; k++) {
+                        if (vlist) {
+                            wanted_velmin = vlist->velmin[k];
+                            wanted_velmax = vlist->velmax[k];
+                            right_patches = vlist->right_patches[k];
+                        }
+                        else {
+                            wanted_velmin = 0;
+                            wanted_velmax = 127;
+                            right_patches = drum_samples_right[i][j];
+                        }
+                        options.opt_left_channel = TRUE;
+                        options.opt_right_channel = FALSE;
+                        if (!grab_soundfont(j, TRUE, drum_name[i][j])) {
+                            fprintf(stderr, "Could not create left/mono patch %s for bank %s\n",
+                                    drum_name[i][j], drumset_name[i]);
+                            fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
+                            if (drum_velocity[i][j]) free(drum_velocity[i][j]);
+                            drum_velocity[i][j] = NULL;
+                            abort_this_one = TRUE;
+                            break;
+                        }
+                        options.opt_header = FALSE;
+                        if (abort_this_one) continue;
+                        if (vlist) right_patches = vlist->right_patches[k];
+                        if (right_patches && !options.opt_mono) {
+                            options.opt_left_channel = FALSE;
+                            options.opt_right_channel = TRUE;
+                            if (!grab_soundfont(j, TRUE, drum_name[i][j])) {
+                                fprintf(stderr, "Could not create right patch %s for bank %s\n",
+                                        drum_name[i][j], drumset_name[i]);
+                                fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
+                                if (drum_velocity[i][j]) free(drum_velocity[i][j]);
+                                drum_velocity[i][j] = NULL;
+                                abort_this_one = TRUE;
+                                break;
+                            }
+                        }
+                    }
+                    if (abort_this_one || options.opt_no_write) continue;
+                    sprintf(tmpname, "%s/%s.pat", drumset_name[i], drum_name[i][j]);
+                    if (!(pf = fopen(tmpname, "wb"))) {
+                        fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
+                        if (drum_velocity[i][j]) free(drum_velocity[i][j]);
+                        drum_velocity[i][j] = NULL;
+                        continue;
+                    }
+                    if ( fwrite(mem, 1, mem_size, pf) != mem_size ) {
+                        fprintf(stderr, "\nCould not write to patch file %s\n", tmpname);
+                        if (drum_velocity[i][j]) free(drum_velocity[i][j]);
+                        drum_velocity[i][j] = NULL;
+                    }
+                    fclose(pf);
+                }
+    }
+    printf("\n");
+}
+
+static void gen_config_file(UnSF_Options options)
+{
+    int i, j, velcount, right_patches;
+    VelocityRangeList *vlist;
+
+    if (options.opt_no_write) return;
+
+    printf("Generating config file.\n");
+
+    for (i = 0; i < 128; i++) {
+        if (tonebank[i]) {
+            fprintf(cfg_fd, "\nbank %d #N %s\n", i, tonebank_name[i]);
+            for (j = 0; j < 128; j++) {
+                if (voice_name[i][j]) {
+                    vlist = voice_velocity[i][j];
+                    if (vlist) {
+                        velcount = vlist->range_count;
+                        right_patches = vlist->right_patches[0];
+                    }
+                    else {
+                        fprintf(cfg_fd, "\t# %d %s could not be extracted\n", j,
+                                voice_name[i][j]);
+                        continue;
+                    }
+                    fprintf(cfg_fd, "\t%d %s/%s", j,
+                            tonebank_name[i], voice_name[i][j]);
+                    if (velcount > 1) fprintf(cfg_fd, "\t# %d velocity ranges", velcount);
+                    if (right_patches) {
+                        if (velcount == 1) fprintf(cfg_fd, "\t# stereo");
+                        else fprintf(cfg_fd,", stereo");
+                    }
+                    fprintf(cfg_fd, "\n");
+                }
+            }
+        }
+    }
+    for (i = 0; i < 128; i++) {
+        if (drumset_name[i]) {
+            fprintf(cfg_fd, "\ndrumset %d #N %s\n", i, drumset_short_name[i]);
+            for (j = 0; j < 128; j++) {
+                if (drum_name[i][j]) {
+                    vlist = drum_velocity[i][j];
+                    if (vlist) {
+                        velcount = vlist->range_count;
+                        right_patches = vlist->right_patches[0];
+                    }
+                    else {
+                        fprintf(cfg_fd, "\t# %d %s could not be extracted\n", j,
+                                drum_name[i][j]);
+                        continue;
+                    }
+                    fprintf(cfg_fd, "\t%d %s/%s", j,
+                            drumset_name[i], drum_name[i][j]);
+                    if (velcount > 1) fprintf(cfg_fd, "\t# %d velocity ranges", velcount);
+                    if (right_patches) {
+                        if (velcount == 1) fprintf(cfg_fd, "\t# stereo");
+                        else fprintf(cfg_fd,", stereo");
+                    }
+                    fprintf(cfg_fd, "\n");
+                }
+            }
+        }
+    }
+}
+
 
 
 
@@ -1130,11 +1512,11 @@ void add_soundfont_patches(UnSF_Options options)
 
         grab_soundfont_banks(options, sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                              sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples);
-        make_directories();
+        make_directories(options);
         sort_velocity_layers();
         shorten_drum_names();
-        make_patch_files();
-        gen_config_file();
+        make_patch_files(options);
+        gen_config_file(options);
     }
 
 
