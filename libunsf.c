@@ -453,7 +453,56 @@ static char *getname(char *p)
     return buf;
 }
 
+static void record_velocity_range(UnSF_Options options, int drum, int banknum, int program, int velmin, int velmax,
+                                  int type) {
+    int i, count;
+    VelocityRangeList *vlist;
+    char *name;
 
+    if (drum) {
+        vlist = drum_velocity[banknum][program];
+        name = drum_name[banknum][program];
+    }
+    else {
+        vlist = voice_velocity[banknum][program];
+        name = voice_name[banknum][program];
+    }
+
+    if (!vlist) {
+        vlist = (VelocityRangeList *)malloc(sizeof(VelocityRangeList));
+        if (drum) drum_velocity[banknum][program] = vlist;
+        else voice_velocity[banknum][program] = vlist;
+        vlist->range_count = 0;
+    }
+    count = vlist->range_count;
+    for (i = 0; i < count; i++) {
+        if (vlist->velmin[i] == velmin && vlist->velmax[i] == velmax) break;
+    }
+    if (i >= 128) return;
+    vlist->velmin[i] = velmin;
+    vlist->velmax[i] = velmax;
+    if (i == count) {
+        vlist->mono_patches[i] = 0;
+        vlist->left_patches[i] = 0;
+        vlist->right_patches[i] = 0;
+        vlist->other_patches[i] = 0;
+        vlist->range_count++;
+    }
+    if (type == RIGHT_SAMPLE) vlist->right_patches[i]++;
+    else if (type == LEFT_SAMPLE) vlist->left_patches[i]++;
+    else if (type == MONO_SAMPLE) vlist->mono_patches[i]++;
+    else {
+        vlist->mono_patches[i]++;
+        vlist->other_patches[i]++;
+    }
+
+    if (options.opt_veryverbose)
+        printf("%s#%d velocity range %d-%d for %s chan %s has %d patches\n", (i==count)? "new ":"",
+               vlist->range_count, velmin, velmax,
+               name, (type==LEFT_SAMPLE)? "left" : (type==RIGHT_SAMPLE)? "right" : "mono",
+               (type==RIGHT_SAMPLE)? vlist->right_patches[i] : (type==LEFT_SAMPLE)? vlist->left_patches[i] :
+                                                               vlist->mono_patches[i]);
+}
 
 /* gets facts and names */
 static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPresetHeader *sf_presets,
@@ -714,7 +763,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
                                 else if (sample->sfSampleType == RIGHT_SAMPLE)
                                     drum_samples_right[options.opt_drum_bank][drumnum]++;
                                 else drum_samples_mono[options.opt_drum_bank][drumnum]++;
-                                record_velocity_range(drum, options.opt_drum_bank, drumnum,
+                                record_velocity_range(options, drum, options.opt_drum_bank, drumnum,
                                                       velmin, velmax, sample->sfSampleType);
                             }
                         }
@@ -724,7 +773,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
                             else if (sample->sfSampleType == RIGHT_SAMPLE)
                                 voice_samples_right[options.opt_bank][wanted_patch]++;
                             else voice_samples_mono[options.opt_bank][wanted_patch]++;
-                            record_velocity_range(0, options.opt_bank, wanted_patch,
+                            record_velocity_range(options, 0, options.opt_bank, wanted_patch,
                                                   velmin, velmax, sample->sfSampleType);
                         }
                     }
@@ -1068,7 +1117,7 @@ void add_soundfont_patches(UnSF_Options options)
         if (options.opt_verbose)
             printf("\n");
 
-        grab_soundfont_banks(options, sf_num_presets, sf_num_presets, sf_preset_indexes, sf_preset_generators,
+        grab_soundfont_banks(options, sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                              sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples);
         make_directories();
         sort_velocity_layers();
