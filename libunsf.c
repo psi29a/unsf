@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -964,7 +965,11 @@ static void shorten_drum_names()
 }
 
 /* converts loaded SoundFont data */
-static int grab_soundfont(UnSF_Options options, int num, int drum, char *name)
+static int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int wanted_velmin, int wanted_velmax,
+                          int sf_num_presets, sfPresetHeader *sf_presets,
+                          sfPresetBag * sf_preset_indexes, sfGenList *sf_preset_generators,
+                          sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
+                          sfGenList * sf_instrument_generators, sfSample * sf_samples)
 {
     sfPresetHeader *pheader;
     sfPresetBag *pindex;
@@ -991,6 +996,9 @@ static int grab_soundfont(UnSF_Options options, int num, int drum, char *name)
     int waiting_room_full;
     int i;
     char *s;
+
+    EMPTY_WHITE_ROOM waiting_list[MAX_WAITING];
+    int waiting_list_count;
 
     if (drum) {
         if (options.opt_drum) {
@@ -1356,7 +1364,10 @@ static int grab_soundfont(UnSF_Options options, int num, int drum, char *name)
     return FALSE;
 }
 
-static void make_patch_files(UnSF_Options options)
+static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetHeader *sf_presets,
+                             sfPresetBag * sf_preset_indexes, sfGenList *sf_preset_generators,
+                             sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
+                             sfGenList * sf_instrument_generators, sfSample * sf_samples)
 {
     int i, j, k, velcount, right_patches;
     char tmpname[80];
@@ -1395,7 +1406,10 @@ static void make_patch_files(UnSF_Options options)
                         }
                         options.opt_left_channel = TRUE;
                         options.opt_right_channel = FALSE;
-                        if (!grab_soundfont(options, j, FALSE, voice_name[i][j])) {
+                        if (!grab_soundfont(options, j, FALSE, voice_name[i][j], wanted_velmin, wanted_velmax,
+                                            sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
+                                            sf_instruments, sf_instrument_indexes, sf_instrument_generators,
+                                            sf_samples)) {
                             fprintf(stderr, "Could not create patch %s for bank %s\n",
                                     voice_name[i][j], tonebank_name[i]);
                             fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
@@ -1410,7 +1424,10 @@ static void make_patch_files(UnSF_Options options)
                         if (right_patches && !options.opt_mono) {
                             options.opt_left_channel = FALSE;
                             options.opt_right_channel = TRUE;
-                            if (!grab_soundfont(options, j, FALSE, voice_name[i][j])) {
+                            if (!grab_soundfont(options, j, FALSE, voice_name[i][j], wanted_velmin, wanted_velmax,
+                                                sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
+                                                sf_instruments, sf_instrument_indexes, sf_instrument_generators,
+                                                sf_samples)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         voice_name[i][j], tonebank_name[i]);
                                 fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
@@ -1462,7 +1479,9 @@ static void make_patch_files(UnSF_Options options)
                         }
                         options.opt_left_channel = TRUE;
                         options.opt_right_channel = FALSE;
-                        if (!grab_soundfont(options, j, TRUE, drum_name[i][j])) {
+                        if (!grab_soundfont(options, j, TRUE, drum_name[i][j], wanted_velmin, wanted_velmax,
+                                            sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
+                                            sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples)) {
                             fprintf(stderr, "Could not create left/mono patch %s for bank %s\n",
                                     drum_name[i][j], drumset_name[i]);
                             fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
@@ -1477,7 +1496,9 @@ static void make_patch_files(UnSF_Options options)
                         if (right_patches && !options.opt_mono) {
                             options.opt_left_channel = FALSE;
                             options.opt_right_channel = TRUE;
-                            if (!grab_soundfont(options, j, TRUE, drum_name[i][j])) {
+                            if (!grab_soundfont(options, j, TRUE, drum_name[i][j], wanted_velmin, wanted_velmax,
+                                        sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
+                                        sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         drum_name[i][j], drumset_name[i]);
                                 fprintf(stderr,"\tlayer %d of %d layer(s)\n", k+1, velcount);
@@ -1909,7 +1930,8 @@ void add_soundfont_patches(UnSF_Options options)
         make_directories(options);
         sort_velocity_layers();
         shorten_drum_names();
-        make_patch_files(options);
+        make_patch_files(options, sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
+                         sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples);
         gen_config_file(options);
     }
 

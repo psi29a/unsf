@@ -248,8 +248,6 @@ static void mem_write_block(void *data, int size)
 
 static EMPTY_WHITE_ROOM waiting_list[MAX_WAITING];
 
-static int waiting_list_count;
-
 /* SoundFont parameters for the current sample */
 static int sf_instrument_look_index;
 static int sf_instrument_unused5;
