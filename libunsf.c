@@ -338,6 +338,7 @@ enum {
 }
 
 
+#ifndef strdup
 /* Function is non ISO standard */
 static char *strdup(const char *s) {
     size_t size = strlen(s) + 1;
@@ -347,6 +348,7 @@ static char *strdup(const char *s) {
     }
     return p;
 }
+#endif
 
 /* reads a byte from the input file */
 static int get8(FILE *f)

@@ -51,7 +51,7 @@ typedef struct UnSF_Options
 } UnSF_Options;
 
 
-void convert_sf_to_gus(UnSF_Options options);
+UNSF_SYMBOL void convert_sf_to_gus(UnSF_Options options);
 
 
 #endif //UNSF_LIBUNSF_H
