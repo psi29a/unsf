@@ -338,9 +338,8 @@ enum {
 }
 
 
-#ifndef strdup
 /* Function is non ISO standard */
-static char *strdup(const char *s) {
+static char *unsf_strdup(const char *s) {
     size_t size = strlen(s) + 1;
     char *p = malloc(size);
     if (p) {
@@ -348,7 +347,6 @@ static char *strdup(const char *s) {
     }
     return p;
 }
-#endif
 
 /* reads a byte from the input file */
 static int get8(FILE *f)
@@ -599,15 +597,15 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
 
         if (drum) {
             if (!drumset_name[options.opt_drum_bank]) {
-                drumset_short_name[options.opt_drum_bank] = strdup(s);
+                drumset_short_name[options.opt_drum_bank] = unsf_strdup(s);
                 sprintf(tmpname, "%s-%s", basename, s);
-                drumset_name[options.opt_drum_bank] = strdup(tmpname);
+                drumset_name[options.opt_drum_bank] = unsf_strdup(tmpname);
                 if (options.opt_verbose) printf("drumset #%d %s\n", options.opt_drum_bank, s);
             }
         }
         else {
             if (!voice_name[options.opt_bank][wanted_patch]) {
-                voice_name[options.opt_bank][wanted_patch] = strdup(s);
+                voice_name[options.opt_bank][wanted_patch] = unsf_strdup(s);
                 if (options.opt_verbose) printf("bank #%d voice #%d %s\n", options.opt_bank, wanted_patch, s);
                 tonebank[options.opt_bank] = TRUE;
             }
@@ -771,7 +769,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
                             for (pool_num = keymin; pool_num <= keymax; pool_num++) {
                                 drumnum = pool_num;
                                 if (!drum_name[options.opt_drum_bank][drumnum]) {
-                                    drum_name[options.opt_drum_bank][drumnum] = strdup(s);
+                                    drum_name[options.opt_drum_bank][drumnum] = unsf_strdup(s);
                                     if (options.opt_verbose) printf("drumset #%d drum #%d %s\n", options.opt_drum_bank, drumnum, s);
                                 }
                                 if (sample->sfSampleType == LEFT_SAMPLE)
@@ -817,9 +815,9 @@ static void make_directories(UnSF_Options options)
         if (tonebank[i]) {
             if (tonebank_count > 1) {
                 sprintf(tmpname, "%s-B%d", basename, i);
-                tonebank_name[i] = strdup(tmpname);
+                tonebank_name[i] = unsf_strdup(tmpname);
             }
-            else tonebank_name[i] = strdup(basename);
+            else tonebank_name[i] = unsf_strdup(basename);
             if (options.opt_no_write) continue;
             if ( (rcode = access(tonebank_name[i], R_OK|W_OK|X_OK)) )
                 rcode=mkdir(tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
