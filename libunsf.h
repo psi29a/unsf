@@ -100,6 +100,24 @@ typedef struct SF_Meta
     short modLfoToFilterFc;
 } SF_Meta;
 
+typedef struct SP_Meta
+{
+    unsigned int volume;
+    int delayModLFO;
+    short resonance;
+    short modEnvToFilterFc;
+    short modLfoToFilterFc;
+    short modEnvToPitch;
+    short cutoff_freq;
+    int freq_center;
+    int vibrato_depth, vibrato_delay;
+    unsigned char vibrato_control_ratio, vibrato_sweep_increment;
+    int tremolo_depth;
+    unsigned char tremolo_phase_increment, tremolo_sweep_increment;
+    int lfo_depth;
+    short lfo_phase_increment;    /* lfo_phase_increment is actually frequency */
+} SP_Meta;
+
 UNSF_SYMBOL void convert_to_gus(UnSF_Options options);
 
 
