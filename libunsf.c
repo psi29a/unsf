@@ -1094,9 +1094,8 @@ static void shorten_drum_names() {
 }
 
 /* writes a block of data the memory buffer */
-static void mem_write_block(void *data, int size, unsigned char *mem, int *mem_size, int *mem_alloced)
-{
-    if (*mem_size+size > *mem_alloced) {
+static void mem_write_block(void *data, int size, unsigned char *mem, int *mem_size, int *mem_alloced) {
+    if (*mem_size + size > *mem_alloced) {
         *mem_alloced = (*mem_alloced + size + 4095) & ~4095;
         if (!(mem = realloc(mem, *mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
@@ -1104,13 +1103,12 @@ static void mem_write_block(void *data, int size, unsigned char *mem, int *mem_s
         }
     }
 
-    memcpy(mem+*mem_size, data, size);
+    memcpy(mem + *mem_size, data, size);
     *mem_size += size;
 }
 
 /* writes a byte to the memory buffer */
-static void mem_write8(int val, unsigned char *mem, int *mem_size, int *mem_alloced)
-{
+static void mem_write8(int val, unsigned char *mem, int *mem_size, int *mem_alloced) {
     if (*mem_size >= *mem_alloced) {
         *mem_alloced += 4096;
         if (!(mem = realloc(mem, *mem_alloced))) {
@@ -1124,15 +1122,13 @@ static void mem_write8(int val, unsigned char *mem, int *mem_size, int *mem_allo
 }
 
 /* writes a word to the memory buffer (little endian) */
-static void mem_write16(int val, unsigned char *mem, int *mem_size, int *mem_alloced)
-{
+static void mem_write16(int val, unsigned char *mem, int *mem_size, int *mem_alloced) {
     mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
 }
 
 /* writes a long to the memory buffer (little endian) */
-static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_alloced)
-{
+static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_alloced) {
     mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 16) & 0xFF, mem, mem_size, mem_alloced);
@@ -1140,23 +1136,20 @@ static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_all
 }
 
 /* converts AWE32 (MIDI) pitches to GUS (frequency) format */
-static int key2freq(int note, int cents)
-{
-    return pow(2.0, (float)(note*100+cents)/1200.0) * 8175.800781;
+static int key2freq(int note, int cents) {
+    return pow(2.0, (float) (note * 100 + cents) / 1200.0) * 8175.800781;
 }
 
 /* converts the strange AWE32 timecent values to milliseconds */
-static int timecent2msec(int t)
-{
+static int timecent2msec(int t) {
     double msec;
-    msec = (double)(1000 * pow(2.0, (double)( t ) / 1200.0));
-    return (int)msec;
+    msec = (double) (1000 * pow(2.0, (double) (t) / 1200.0));
+    return (int) msec;
 }
 
 /* converts milliseconds to the even stranger floating point GUS format */
-static int msec2gus(int t, int r)
-{
-    static int vexp[4] = { 1, 8, 64, 512 };
+static int msec2gus(int t, int r) {
+    static int vexp[4] = {1, 8, 64, 512};
     int e, m;
 
     if (r <= 0)
@@ -1167,8 +1160,8 @@ static int msec2gus(int t, int r)
     if (t <= 0)
         return 0x3F;
 
-    for (e=3; e>=0; e--) {
-        m = (vexp[e] * 16 + t/2) / t;
+    for (e = 3; e >= 0; e--) {
+        m = (vexp[e] * 16 + t / 2) / t;
 
         if ((m > 0) && (m < 64))
             return ((e << 6) | m);
@@ -1178,8 +1171,7 @@ static int msec2gus(int t, int r)
 }
 
 /* interprets a SoundFont generator object */
-static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g, int preset, int global)
-{
+static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g, int preset, int global) {
     switch (g->sfGenOper) {
 
         case SFGEN_startAddrsOffset:
@@ -1199,19 +1191,19 @@ static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g
             break;
 
         case SFGEN_startAddrsCoarseOffset:
-            sf_meta->start += (int)g->genAmount.shAmount * 32768;
+            sf_meta->start += (int) g->genAmount.shAmount * 32768;
             break;
 
         case SFGEN_endAddrsCoarseOffset:
-            sf_meta->end += (int)g->genAmount.shAmount * 32768;
+            sf_meta->end += (int) g->genAmount.shAmount * 32768;
             break;
 
         case SFGEN_startloopAddrsCoarse:
-            sf_meta->loop_start += (int)g->genAmount.shAmount * 32768;
+            sf_meta->loop_start += (int) g->genAmount.shAmount * 32768;
             break;
 
         case SFGEN_endloopAddrsCoarse:
-            sf_meta->loop_end += (int)g->genAmount.shAmount * 32768;
+            sf_meta->loop_end += (int) g->genAmount.shAmount * 32768;
             break;
 
         case SFGEN_modEnvToPitch:
@@ -1492,10 +1484,10 @@ static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g
             if (options.opt_verbose) printf("APS parameter %d\n", sf_meta->instrument_unused5);
             break;
         default:
-            fprintf(stderr,"Warning: generator %d with value %d not handled at the %s %s level\n",
+            fprintf(stderr, "Warning: generator %d with value %d not handled at the %s %s level\n",
                     g->sfGenOper, g->genAmount.shAmount,
-                    global? "global":"local",
-                    preset? "preset":"instrument");
+                    global ? "global" : "local",
+                    preset ? "preset" : "instrument");
             break;
     }
 }
@@ -1504,8 +1496,7 @@ static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g
  * tremolo (LFO1) conversion
  *----------------------------------------------------------------*/
 
-static void convert_tremolo(SP_Meta *sp_meta, SF_Meta *sf_meta)
-{
+static void convert_tremolo(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     int level;
     int freq;
 
@@ -1516,7 +1507,7 @@ static void convert_tremolo(SP_Meta *sp_meta, SF_Meta *sf_meta)
     level = sf_meta->modLfoToVolume;
     if (level < 0) level = -level;
 
-    level = 255 - (unsigned char)(255 * (1.0 - (level) / (1200.0 * log10(2.0))));
+    level = 255 - (unsigned char) (255 * (1.0 - (level) / (1200.0 * log10(2.0))));
 
     if (level < 0) level = -level;
     if (level > 20) level = 20; /* arbitrary */
@@ -1534,8 +1525,8 @@ static void convert_tremolo(SP_Meta *sp_meta, SF_Meta *sf_meta)
     freq *= 20;
     if (freq > 255) freq = 255;
 
-    sp_meta->tremolo_phase_increment = (unsigned char)freq;
-    sp_meta->tremolo_sweep_increment = ((unsigned char)(freq/5));
+    sp_meta->tremolo_phase_increment = (unsigned char) freq;
+    sp_meta->tremolo_sweep_increment = ((unsigned char) (freq / 5));
 }
 
 /*----------------------------------------------------------------
@@ -1545,16 +1536,16 @@ static void convert_tremolo(SP_Meta *sp_meta, SF_Meta *sf_meta)
 #ifndef VIBRATO_RATE_TUNING
 #define VIBRATO_RATE_TUNING 38
 #endif
-static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta)
-{
-    int shift=0, freq=0, delay=0;
 
-    if (sf_meta->delayModLFO) sp_meta->delayModLFO = (int)timecent2msec(sf_meta->delayModLFO);
+static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta) {
+    int shift = 0, freq = 0, delay = 0;
+
+    if (sf_meta->delayModLFO) sp_meta->delayModLFO = (int) timecent2msec(sf_meta->delayModLFO);
 
     if (sf_meta->vibLfoToPitch) {
         shift = sf_meta->vibLfoToPitch;
         if (sf_meta->freqVibLFO) freq = sf_meta->freqVibLFO;
-        if (sf_meta->delayVibLFO) delay = (int)timecent2msec(sf_meta->delayVibLFO);
+        if (sf_meta->delayVibLFO) delay = (int) timecent2msec(sf_meta->delayVibLFO);
     }
     else if (sf_meta->modLfoToPitch) {
         shift = sf_meta->modLfoToPitch;
@@ -1569,16 +1560,16 @@ static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta)
 
 #if 0
     /* cents to linear; 400cents = 256 */
-	shift = shift * 256 / 400;
-	if (shift > 255) shift = 255;
-	else if (shift < -255) shift = -255;
-	sp_meta->vibrato_depth = shift;
-	/* This is Timidity++ code.  I don't think it makes sense.
-	 * vibrato depth seems to be an unsigned 8 bit quantity.
-	 */
+    shift = shift * 256 / 400;
+    if (shift > 255) shift = 255;
+    else if (shift < -255) shift = -255;
+    sp_meta->vibrato_depth = shift;
+    /* This is Timidity++ code.  I don't think it makes sense.
+     * vibrato depth seems to be an unsigned 8 bit quantity.
+     */
 #else
     /* cents to linear; 400cents = 256 */
-    shift = (int)(pow(2.0, ((double)shift/1200.0)) * VIBRATO_RATE_TUNING);
+    shift = (int) (pow(2.0, ((double) shift / 1200.0)) * VIBRATO_RATE_TUNING);
     if (shift < 0) shift = -shift;
     if (shift < 2) shift = 2;
     if (shift > 20) shift = 20; /* arbitrary */
@@ -1595,10 +1586,10 @@ static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta)
     if (freq > 255) freq = 255;
 
     /* sp_meta->vibrato_control_ratio = convert_vibrato_rate((unsigned char)freq); */
-    sp_meta->vibrato_control_ratio = (unsigned char)freq;
+    sp_meta->vibrato_control_ratio = (unsigned char) freq;
 
     /* convert mHz to control ratio */
-    sp_meta->vibrato_sweep_increment = (unsigned char)(freq/5);
+    sp_meta->vibrato_sweep_increment = (unsigned char) (freq / 5);
 
     /* sp_meta->vibrato_delay = delay * control_ratio;*/
     sp_meta->vibrato_delay = delay;
@@ -1609,8 +1600,7 @@ static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta)
  * from Takashi Iwai and/or Masanao Izumi (who are not responsible
  * for my interpretation of it). (gl)
  */
-static int calc_root_pitch(SP_Meta *sp_meta, SF_Meta *sf_meta)
-{
+static int calc_root_pitch(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     int root, tune;
 
     root = sf_meta->key; /* sample originalPitch */
@@ -1648,20 +1638,20 @@ static int calc_root_pitch(SP_Meta *sp_meta, SF_Meta *sf_meta)
     tune = (-tune * 256) / 100;
 
     if (root > 127)
-        return (int)((double)freq_table[127] *
-                     bend_coarse[root - 127] * bend_fine[tune]);
+        return (int) ((double) freq_table[127] *
+                      bend_coarse[root - 127] * bend_fine[tune]);
     else if (root < 0)
-        return (int)((double)freq_table[0] /
-                     bend_coarse[-root] * bend_fine[tune]);
+        return (int) ((double) freq_table[0] /
+                      bend_coarse[-root] * bend_fine[tune]);
     else
-        return (int)((double)freq_table[root] * bend_fine[tune]);
+        return (int) ((double) freq_table[root] * bend_fine[tune]);
 
 }
 
 #define CB_TO_VOLUME(centibel) (255 * (1.0 - ((double)(centibel)/100.0) / (1200.0 * log10(2.0)) ))
+
 /* convert peak volume to linear volume (0-255) */
-static unsigned int calc_volume(SF_Meta *sf_meta)
-{
+static unsigned int calc_volume(SF_Meta *sf_meta) {
     int v;
     double ret;
 
@@ -1669,31 +1659,31 @@ static unsigned int calc_volume(SF_Meta *sf_meta)
     v = sf_meta->initialAttenuation;
     if (v < 0) v = 0;
     else if (v > 960) v = 960;
-    ret = CB_TO_VOLUME((double)v);
+    ret = CB_TO_VOLUME((double) v);
     if (ret < 1.0) return 0;
     if (ret > 255.0) return 255;
-    return (unsigned int)ret;
+    return (unsigned int) ret;
 }
 
 #define TO_VOLUME(centibel) (unsigned char)(255 * pow(10.0, -(double)(centibel)/200.0))
+
 /* convert sustain volume to linear volume */
-static unsigned char calc_sustain(SF_Meta *sf_meta)
-{
+static unsigned char calc_sustain(SF_Meta *sf_meta) {
     int level;
 
     if (!sf_meta->sustain_level) return 250;
     level = TO_VOLUME(sf_meta->sustain_level);
     if (level > 253) level = 253;
     if (level < 100) level = 250; /* Protect against bogus value? This is for PC42c saxes. */
-    return (unsigned char)level;
+    return (unsigned char) level;
 }
-static unsigned int calc_mod_sustain(SF_Meta *sf_meta)
-{
+
+static unsigned int calc_mod_sustain(SF_Meta *sf_meta) {
     if (!sf_meta->sustain_mod_env) return 250;
     return TO_VOLUME(sf_meta->sustain_mod_env);
 }
-static void calc_resonance(SP_Meta *sp_meta, SF_Meta *sf_meta)
-{
+
+static void calc_resonance(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     short val = sf_meta->initialFilterQ;
     //sp_meta->resonance = pow(10.0, (double)val / 2.0 / 200.0) - 1;
     sp_meta->resonance = val;
@@ -1703,25 +1693,24 @@ static void calc_resonance(SP_Meta *sp_meta, SF_Meta *sf_meta)
 
 
 /* calculate cutoff/resonance frequency */
-static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta)
-{
+static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     short val;
 
     if (sf_meta->initialFilterFc < 1) val = 13500;
     else val = sf_meta->initialFilterFc;
 
     if (sf_meta->modEnvToFilterFc /*&& sf_meta->initialFilterFc*/) {
-        sp_meta->modEnvToFilterFc = pow(2.0, ((double)sf_meta->modEnvToFilterFc/1200.0));
+        sp_meta->modEnvToFilterFc = pow(2.0, ((double) sf_meta->modEnvToFilterFc / 1200.0));
     }
     else sp_meta->modEnvToFilterFc = 0;
 
     if (sf_meta->modLfoToFilterFc /* && sf_meta->initialFilterFc*/) {
-        sp_meta->modLfoToFilterFc = pow(2.0, ((double)sf_meta->modLfoToFilterFc/1200.0));
+        sp_meta->modLfoToFilterFc = pow(2.0, ((double) sf_meta->modLfoToFilterFc / 1200.0));
     }
     else sp_meta->modLfoToFilterFc = 0;
 
     if (sf_meta->mod_env_to_pitch) {
-        sp_meta->modEnvToPitch = pow(2.0, ((double)sf_meta->mod_env_to_pitch/1200.0));
+        sp_meta->modEnvToPitch = pow(2.0, ((double) sf_meta->mod_env_to_pitch / 1200.0));
     }
     else sp_meta->modEnvToPitch = 0;
 
@@ -1733,8 +1722,9 @@ static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta)
 static void
       convert_lfo(char *name, int program, int banknum, int wanted_bank)
 #else
+
 static void
-convert_lfo (SP_Meta *sp_meta, SF_Meta *sf_meta)
+convert_lfo(SP_Meta *sp_meta, SF_Meta *sf_meta)
 #endif
 {
     int freq = 0, shift = 0;
@@ -1747,7 +1737,7 @@ convert_lfo (SP_Meta *sp_meta, SF_Meta *sf_meta)
     shift = sf_meta->modLfoToFilterFc;
     if (sf_meta->freqModLFO) freq = sf_meta->freqModLFO;
 
-    shift = (int)(pow(2.0, ((double)shift/1200.0)) * VIBRATO_RATE_TUNING);
+    shift = (int) (pow(2.0, ((double) shift / 1200.0)) * VIBRATO_RATE_TUNING);
 
     sp_meta->lfo_depth = shift;
 
@@ -1756,29 +1746,28 @@ convert_lfo (SP_Meta *sp_meta, SF_Meta *sf_meta)
 
     if (freq < 1) freq = 1;
 
-    sp_meta->lfo_phase_increment = (short)freq;
+    sp_meta->lfo_phase_increment = (short) freq;
 #ifdef LFO_DEBUG
     fprintf(stderr,"name=%s, bank=%d(%d), prog=%d, freq=%d\n",
-			name, banknum, wanted_bank, program, freq);
+            name, banknum, wanted_bank, program, freq);
 #endif
 }
 
 /* Bits in modes: */
-#define MODES_16BIT	(1<<0)
-#define MODES_UNSIGNED	(1<<1)
-#define MODES_LOOPING	(1<<2)
-#define MODES_PINGPONG	(1<<3)
-#define MODES_REVERSE	(1<<4)
-#define MODES_SUSTAIN	(1<<5)
-#define MODES_ENVELOPE	(1<<6)
-#define MODES_FAST_RELEASE	(1<<7)
+#define MODES_16BIT    (1<<0)
+#define MODES_UNSIGNED    (1<<1)
+#define MODES_LOOPING    (1<<2)
+#define MODES_PINGPONG    (1<<3)
+#define MODES_REVERSE    (1<<4)
+#define MODES_SUSTAIN    (1<<5)
+#define MODES_ENVELOPE    (1<<6)
+#define MODES_FAST_RELEASE    (1<<7)
 
 /* The sampleFlags value, in my experience, is not to be trusted,
  * so the following uses some heuristics to guess whether to
  * set looping and sustain modes. (gl)
  */
-static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlags, int program, int banknum)
-{
+static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlags, int program, int banknum) {
     int modes;
     int orig_sampleFlags = sampleFlags;
 
@@ -1808,13 +1797,13 @@ static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlag
                 /* horns, woodwinds */
             else if (program >= 56 && program <= 79) sampleFlags = 3;
                 /* lead, pad, fx */
-            else if (program >= 80 && program <=103) sampleFlags = 3;
+            else if (program >= 80 && program <= 103) sampleFlags = 3;
                 /* bagpipe, fiddle, shanai */
-            else if (program >=109 && program <=111) sampleFlags = 3;
+            else if (program >= 109 && program <= 111) sampleFlags = 3;
                 /* breath noise, ... telephone, helicopter */
-            else if (program >=121 && program <=125) sampleFlags = 3;
+            else if (program >= 121 && program <= 125) sampleFlags = 3;
                 /* applause */
-            else if (program ==126) sampleFlags = 3;
+            else if (program == 126) sampleFlags = 3;
         }
 
         if (options.opt_verbose && orig_sampleFlags != sampleFlags)
@@ -1830,21 +1819,20 @@ static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlag
     return modes;
 }
 
-static int adjust_volume(short *sf_sample_data, int start, int length)
-{
+static int adjust_volume(short *sf_sample_data, int start, int length) {
 #if 0
     if (opt_adjust_volume) sp_volume = adjust_volume(sample->dwStart, length);
-	 for (i=0; i<length; i++)
-	    mem_write16(sf_sample_data[sample->dwStart+i]);
+     for (i=0; i<length; i++)
+        mem_write16(sf_sample_data[sample->dwStart+i]);
 #endif
     /* Try to determine a volume scaling factor for the sample.
        This is a very crude adjustment, but things sound more
        balanced with it. Still, this should be a runtime option. */
 
-    unsigned int  countsamp, numsamps = length;
-    unsigned int  higher = 0, highcount = 0;
-    short   maxamp = 0, a;
-    short  *tmpdta = (short *) sf_sample_data + start;
+    unsigned int countsamp, numsamps = length;
+    unsigned int higher = 0, highcount = 0;
+    short maxamp = 0, a;
+    short *tmpdta = (short *) sf_sample_data + start;
     double new_vol;
     countsamp = numsamps;
     while (countsamp--) {
@@ -1870,7 +1858,7 @@ static int adjust_volume(short *sf_sample_data, int start, int length)
     else
         higher = 10000;
     new_vol = (32768.0 * 0.875) / (double) higher;
-    return (int)(new_vol * 255.0);
+    return (int) (new_vol * 255.0);
 }
 
 /* copies data from the waiting list into a GUS .pat struct */
@@ -2195,10 +2183,10 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         if (sustain < 0) sustain = 0;
         if (sustain > sp_meta.volume - 2) sustain = sp_meta.volume - 2;
 
-    /*
-        if (!lay->set[SF_releaseEnv2] && banknum < 128) release = 400;
-        if (!lay->set[SF_decayEnv2] && banknum < 128) decay = 400;
-    */
+        /*
+            if (!lay->set[SF_releaseEnv2] && banknum < 128) release = 400;
+            if (!lay->set[SF_decayEnv2] && banknum < 128) decay = 400;
+        */
         delay = timecent2msec(sf_meta.delay_vol_env);
         attack = timecent2msec(sf_meta.attack_vol_env);
         hold = timecent2msec(sf_meta.hold_vol_env);
@@ -2328,7 +2316,8 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write8(sf_meta.exclusiveClass, mem, mem_size, mem_alloced);
         mem_write8(sp_meta.vibrato_delay, mem, mem_size, mem_alloced);
 
-        mem_write8(msec2gus(mod_attack, sp_meta.volume), mem, mem_size, mem_alloced);                   /* envelope rates */
+        mem_write8(msec2gus(mod_attack, sp_meta.volume), mem, mem_size,
+                   mem_alloced);                   /* envelope rates */
         mem_write8(msec2gus(mod_hold, sp_meta.volume - 1), mem, mem_size, mem_alloced);
         mem_write8(msec2gus(mod_decay, sp_meta.volume - 1 - mod_sustain), mem, mem_size, mem_alloced);
         mem_write8(msec2gus(mod_release, 255), mem, mem_size, mem_alloced);
@@ -2374,7 +2363,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 #if 0
         /* 36 (34?) bytes were reserved; now 1 left */
       for (i=35; i<36; i++)                /* reserved */
-     mem_write8(0);
+        mem_write8(0, mem, mem_size, mem_alloced);
 #endif
         if (options.opt_8bit) {                     /* sample waveform */
             for (i = 0; i < length; i++)
@@ -2770,10 +2759,12 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                 }
                 if (drum)
                     return grab_soundfont_sample(options, name, wanted_keymin, wanted_patch, wanted_bank,
-                                                 waiting_list_count, waiting_list, mem, mem_alloced, mem_size, sf_sample_data);
+                                                 waiting_list_count, waiting_list, mem, mem_alloced, mem_size,
+                                                 sf_sample_data);
                 else
                     return grab_soundfont_sample(options, name, wanted_patch, wanted_bank, wanted_bank,
-                                                 waiting_list_count, waiting_list, mem, mem_alloced, mem_size, sf_sample_data);
+                                                 waiting_list_count, waiting_list, mem, mem_alloced, mem_size,
+                                                 sf_sample_data);
             }
             else {
                 fprintf(stderr, "\nStrange... no valid layers found in instrument %s bank %d prog %d\n",
