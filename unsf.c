@@ -38,47 +38,7 @@
 
 
 
-/* converts AWE32 (MIDI) pitches to GUS (frequency) format */
-static int key2freq(int note, int cents)
-{
-   return pow(2.0, (float)(note*100+cents)/1200.0) * 8175.800781;
-}
 
-
-
-/* converts the strange AWE32 timecent values to milliseconds */
-static int timecent2msec(int t)
-{
-   double msec;
-   msec = (double)(1000 * pow(2.0, (double)( t ) / 1200.0));
-   return (int)msec;
-}
-
-
-
-/* converts milliseconds to the even stranger floating point GUS format */
-static int msec2gus(int t, int r)
-{
-   static int vexp[4] = { 1, 8, 64, 512 };
-   int e, m;
-
-   if (r <= 0)
-      return 0x3F;
-
-   t = t * 32 / r;
-
-   if (t <= 0)
-      return 0x3F;
-
-   for (e=3; e>=0; e--) {
-      m = (vexp[e] * 16 + t/2) / t;
-
-      if ((m > 0) && (m < 64))
-	 return ((e << 6) | m);
-   }
-
-   return 0xC1;
-}
 
 /* Bits in modes: */
 #define MODES_16BIT	(1<<0)
@@ -247,8 +207,7 @@ static void calc_resonance(void)
 		sp_resonance = 0;
 }
 
-#define TO_HZ(abscents) (int)(8.176 * pow(2.0,(double)(abscents)/1200.0))
-#define TO_HZ20(abscents) (int)(20 * 8.176 * pow(2.0,(double)(abscents)/1200.0))
+
 /* calculate cutoff/resonance frequency */
 static void calc_cutoff(void)
 {
@@ -276,71 +235,7 @@ static void calc_cutoff(void)
 	if (val < 0 || val > 24000) val = 19192;
 }
 
-/*----------------------------------------------------------------
- * vibrato (LFO2) conversion
- * (note: my changes to Takashi's code are unprincipled --gl)
- *----------------------------------------------------------------*/
-#ifndef VIBRATO_RATE_TUNING
-#define VIBRATO_RATE_TUNING 38
-#endif
-static void convert_vibrato(void)
-{
-	int shift=0, freq=0, delay=0;
 
-	if (sf_delayModLFO) sp_delayModLFO = (int)timecent2msec(sf_delayModLFO);
-
-	if (sf_vibLfoToPitch) {
-		shift = sf_vibLfoToPitch;
-		if (sf_freqVibLFO) freq = sf_freqVibLFO;
-		if (sf_delayVibLFO) delay = (int)timecent2msec(sf_delayVibLFO);
-	}
-	else if (sf_modLfoToPitch) {
-		shift = sf_modLfoToPitch;
-		if (sf_freqModLFO) freq = sf_freqModLFO;
-		if (sf_delayModLFO) delay = sp_delayModLFO;
-	}
-
-	if (!shift) {
-		sp_vibrato_depth = sp_vibrato_control_ratio = sp_vibrato_sweep_increment = 0;
-		return;
-	}
-
-#if 0
-	/* cents to linear; 400cents = 256 */
-	shift = shift * 256 / 400;
-	if (shift > 255) shift = 255;
-	else if (shift < -255) shift = -255;
-	sp_vibrato_depth = shift;
-	/* This is Timidity++ code.  I don't think it makes sense.
-	 * vibrato depth seems to be an unsigned 8 bit quantity.
-	 */
-#else
-	/* cents to linear; 400cents = 256 */
-	shift = (int)(pow(2.0, ((double)shift/1200.0)) * VIBRATO_RATE_TUNING);
-	if (shift < 0) shift = -shift;
-	if (shift < 2) shift = 2;
-	if (shift > 20) shift = 20; /* arbitrary */
-	sp_vibrato_depth = shift;
-#endif
-
-	/* frequency in mHz */
-	if (!freq) freq = 8;
-	else freq = TO_HZ(freq);
-
-	if (freq < 1) freq = 1;
-
-	freq *= 20;
-	if (freq > 255) freq = 255;
-
-	/* sp_vibrato_control_ratio = convert_vibrato_rate((unsigned char)freq); */
-	sp_vibrato_control_ratio = (unsigned char)freq;
-
-	/* convert mHz to control ratio */
-	sp_vibrato_sweep_increment = (unsigned char)(freq/5);
-	
-	/* sp_vibrato_delay = delay * control_ratio;*/
-	sp_vibrato_delay = delay;
-}
 
 
 #ifdef LFO_DEBUG
@@ -377,43 +272,7 @@ convert_lfo (void)
 #endif
 }
 
-/*----------------------------------------------------------------
- * tremolo (LFO1) conversion
- *----------------------------------------------------------------*/
 
-static void convert_tremolo(void)
-{
-	int level;
-	int freq;
-
-	sp_tremolo_phase_increment = sp_tremolo_sweep_increment = sp_tremolo_depth = 0;
-
-	if (!sf_modLfoToVolume) return;
-
-	level = sf_modLfoToVolume;
-	if (level < 0) level = -level;
-
-	level = 255 - (unsigned char)(255 * (1.0 - (level) / (1200.0 * log10(2.0))));
-
-	if (level < 0) level = -level;
-	if (level > 20) level = 20; /* arbitrary */
-	if (level < 2) level = 2;
-	sp_tremolo_depth = level;
-
-	/* frequency in mHz */
-	if (!sf_freqModLFO) freq = 8;
-	else {
-		freq = sf_freqModLFO;
-		freq = TO_HZ(freq);
-	}
-
-	if (freq < 1) freq = 1;
-	freq *= 20;
-	if (freq > 255) freq = 255;
-
-	sp_tremolo_phase_increment = (unsigned char)freq;
-	sp_tremolo_sweep_increment = ((unsigned char)(freq/5));
-}
 
 
 

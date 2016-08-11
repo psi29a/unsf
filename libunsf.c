@@ -327,6 +327,9 @@ enum {
    goto getout;                                             \
 }
 
+#define TO_HZ(abscents) (int)(8.176 * pow(2.0,(double)(abscents)/1200.0))
+#define TO_HZ20(abscents) (int)(20 * 8.176 * pow(2.0,(double)(abscents)/1200.0))
+
 static unsigned int freq_table[128] =
         {
                 8176, 8662, 9177, 9723,
@@ -1136,6 +1139,44 @@ static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_all
     mem_write8((val >> 24) & 0xFF, mem, mem_size, mem_alloced);
 }
 
+/* converts AWE32 (MIDI) pitches to GUS (frequency) format */
+static int key2freq(int note, int cents)
+{
+    return pow(2.0, (float)(note*100+cents)/1200.0) * 8175.800781;
+}
+
+/* converts the strange AWE32 timecent values to milliseconds */
+static int timecent2msec(int t)
+{
+    double msec;
+    msec = (double)(1000 * pow(2.0, (double)( t ) / 1200.0));
+    return (int)msec;
+}
+
+/* converts milliseconds to the even stranger floating point GUS format */
+static int msec2gus(int t, int r)
+{
+    static int vexp[4] = { 1, 8, 64, 512 };
+    int e, m;
+
+    if (r <= 0)
+        return 0x3F;
+
+    t = t * 32 / r;
+
+    if (t <= 0)
+        return 0x3F;
+
+    for (e=3; e>=0; e--) {
+        m = (vexp[e] * 16 + t/2) / t;
+
+        if ((m > 0) && (m < 64))
+            return ((e << 6) | m);
+    }
+
+    return 0xC1;
+}
+
 /* interprets a SoundFont generator object */
 static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g, int preset, int global)
 {
@@ -1458,6 +1499,112 @@ static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g
             break;
     }
 }
+
+/*----------------------------------------------------------------
+ * tremolo (LFO1) conversion
+ *----------------------------------------------------------------*/
+
+static void convert_tremolo(SP_Meta *sp_meta, SF_Meta *sf_meta)
+{
+    int level;
+    int freq;
+
+    sp_meta->tremolo_phase_increment = sp_meta->tremolo_sweep_increment = sp_meta->tremolo_depth = 0;
+
+    if (!sf_meta->modLfoToVolume) return;
+
+    level = sf_meta->modLfoToVolume;
+    if (level < 0) level = -level;
+
+    level = 255 - (unsigned char)(255 * (1.0 - (level) / (1200.0 * log10(2.0))));
+
+    if (level < 0) level = -level;
+    if (level > 20) level = 20; /* arbitrary */
+    if (level < 2) level = 2;
+    sp_meta->tremolo_depth = level;
+
+    /* frequency in mHz */
+    if (!sf_meta->freqModLFO) freq = 8;
+    else {
+        freq = sf_meta->freqModLFO;
+        freq = TO_HZ(freq);
+    }
+
+    if (freq < 1) freq = 1;
+    freq *= 20;
+    if (freq > 255) freq = 255;
+
+    sp_meta->tremolo_phase_increment = (unsigned char)freq;
+    sp_meta->tremolo_sweep_increment = ((unsigned char)(freq/5));
+}
+
+/*----------------------------------------------------------------
+ * vibrato (LFO2) conversion
+ * (note: my changes to Takashi's code are unprincipled --gl)
+ *----------------------------------------------------------------*/
+#ifndef VIBRATO_RATE_TUNING
+#define VIBRATO_RATE_TUNING 38
+#endif
+static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta)
+{
+    int shift=0, freq=0, delay=0;
+
+    if (sf_meta->delayModLFO) sp_meta->delayModLFO = (int)timecent2msec(sf_meta->delayModLFO);
+
+    if (sf_meta->vibLfoToPitch) {
+        shift = sf_meta->vibLfoToPitch;
+        if (sf_meta->freqVibLFO) freq = sf_meta->freqVibLFO;
+        if (sf_meta->delayVibLFO) delay = (int)timecent2msec(sf_meta->delayVibLFO);
+    }
+    else if (sf_meta->modLfoToPitch) {
+        shift = sf_meta->modLfoToPitch;
+        if (sf_meta->freqModLFO) freq = sf_meta->freqModLFO;
+        if (sf_meta->delayModLFO) delay = sp_meta->delayModLFO;
+    }
+
+    if (!shift) {
+        sp_meta->vibrato_depth = sp_meta->vibrato_control_ratio = sp_meta->vibrato_sweep_increment = 0;
+        return;
+    }
+
+#if 0
+    /* cents to linear; 400cents = 256 */
+	shift = shift * 256 / 400;
+	if (shift > 255) shift = 255;
+	else if (shift < -255) shift = -255;
+	sp_meta->vibrato_depth = shift;
+	/* This is Timidity++ code.  I don't think it makes sense.
+	 * vibrato depth seems to be an unsigned 8 bit quantity.
+	 */
+#else
+    /* cents to linear; 400cents = 256 */
+    shift = (int)(pow(2.0, ((double)shift/1200.0)) * VIBRATO_RATE_TUNING);
+    if (shift < 0) shift = -shift;
+    if (shift < 2) shift = 2;
+    if (shift > 20) shift = 20; /* arbitrary */
+    sp_meta->vibrato_depth = shift;
+#endif
+
+    /* frequency in mHz */
+    if (!freq) freq = 8;
+    else freq = TO_HZ(freq);
+
+    if (freq < 1) freq = 1;
+
+    freq *= 20;
+    if (freq > 255) freq = 255;
+
+    /* sp_meta->vibrato_control_ratio = convert_vibrato_rate((unsigned char)freq); */
+    sp_meta->vibrato_control_ratio = (unsigned char)freq;
+
+    /* convert mHz to control ratio */
+    sp_meta->vibrato_sweep_increment = (unsigned char)(freq/5);
+
+    /* sp_meta->vibrato_delay = delay * control_ratio;*/
+    sp_meta->vibrato_delay = delay;
+}
+
+
 
 /* copies data from the waiting list into a GUS .pat struct */
 static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
@@ -1876,12 +2023,12 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write8(0, mem, mem_size, mem_alloced);
         mem_write8(0, mem, mem_size, mem_alloced);
 
-        convert_tremolo();
+        convert_tremolo(&sp_meta, &sf_meta);
         mem_write8(sp_meta.tremolo_sweep_increment, mem, mem_size, mem_alloced);    /* tremolo sweep */
         mem_write8(sp_meta.tremolo_phase_increment, mem, mem_size, mem_alloced);    /* tremolo rate */
         mem_write8(sp_meta.tremolo_depth, mem, mem_size, mem_alloced);              /* tremolo depth */
 
-        convert_vibrato();
+        convert_vibrato(&sp_meta, &sf_meta);
         mem_write8(sp_meta.vibrato_sweep_increment, mem, mem_size, mem_alloced);     /* vibrato sweep */
         mem_write8(sp_meta.vibrato_control_ratio, mem, mem_size, mem_alloced);      /* vibrato rate */
         mem_write8(sp_meta.vibrato_depth, mem, mem_size, mem_alloced);               /* vibrato depth */
