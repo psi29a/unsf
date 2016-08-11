@@ -1136,6 +1136,329 @@ static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_all
     mem_write8((val >> 24) & 0xFF, mem, mem_size, mem_alloced);
 }
 
+/* interprets a SoundFont generator object */
+static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g, int preset, int global)
+{
+    switch (g->sfGenOper) {
+
+        case SFGEN_startAddrsOffset:
+            sf_meta->start += g->genAmount.shAmount;
+            break;
+
+        case SFGEN_endAddrsOffset:
+            sf_meta->end += g->genAmount.shAmount;
+            break;
+
+        case SFGEN_startloopAddrsOffset:
+            sf_meta->loop_start += g->genAmount.shAmount;
+            break;
+
+        case SFGEN_endloopAddrsOffset:
+            sf_meta->loop_end += g->genAmount.shAmount;
+            break;
+
+        case SFGEN_startAddrsCoarseOffset:
+            sf_meta->start += (int)g->genAmount.shAmount * 32768;
+            break;
+
+        case SFGEN_endAddrsCoarseOffset:
+            sf_meta->end += (int)g->genAmount.shAmount * 32768;
+            break;
+
+        case SFGEN_startloopAddrsCoarse:
+            sf_meta->loop_start += (int)g->genAmount.shAmount * 32768;
+            break;
+
+        case SFGEN_endloopAddrsCoarse:
+            sf_meta->loop_end += (int)g->genAmount.shAmount * 32768;
+            break;
+
+        case SFGEN_modEnvToPitch:
+            if (preset)
+                sf_meta->mod_env_to_pitch += g->genAmount.shAmount;
+            else
+                sf_meta->mod_env_to_pitch = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_sustainModEnv:
+            if (preset)
+                sf_meta->sustain_mod_env += g->genAmount.shAmount;
+            else
+                sf_meta->sustain_mod_env = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_delayVolEnv:
+            if (preset)
+                sf_meta->delay_vol_env += g->genAmount.shAmount;
+            else
+                sf_meta->delay_vol_env = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_attackVolEnv:
+            if (preset)
+                sf_meta->attack_vol_env += g->genAmount.shAmount;
+            else
+                sf_meta->attack_vol_env = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_holdVolEnv:
+            if (preset)
+                sf_meta->hold_vol_env += g->genAmount.shAmount;
+            else
+                sf_meta->hold_vol_env = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_decayVolEnv:
+            if (preset)
+                sf_meta->decay_vol_env += g->genAmount.shAmount;
+            else
+                sf_meta->decay_vol_env = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_sustainVolEnv:
+            if (preset)
+                sf_meta->sustain_level += g->genAmount.shAmount;
+            else
+                sf_meta->sustain_level = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_releaseVolEnv:
+            if (preset)
+                sf_meta->release_vol_env += g->genAmount.shAmount;
+            else
+                sf_meta->release_vol_env = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_pan:
+            if (preset)
+                sf_meta->pan += g->genAmount.shAmount;
+            else
+                sf_meta->pan = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_keyRange:
+            if (preset) {
+                if (g->genAmount.ranges.byLo >= sf_meta->keymin && g->genAmount.ranges.byHi <= sf_meta->keymax) {
+                    sf_meta->keymin = g->genAmount.ranges.byLo;
+                    sf_meta->keymax = g->genAmount.ranges.byHi;
+                }
+            }
+            else {
+                sf_meta->keymin = g->genAmount.ranges.byLo;
+                sf_meta->keymax = g->genAmount.ranges.byHi;
+            }
+            break;
+
+        case SFGEN_velRange:
+            if (preset) {
+                if (g->genAmount.ranges.byLo >= sf_meta->velmin && g->genAmount.ranges.byHi <= sf_meta->velmax) {
+                    sf_meta->velmin = g->genAmount.ranges.byLo;
+                    sf_meta->velmax = g->genAmount.ranges.byHi;
+                }
+            }
+            else {
+                sf_meta->velmin = g->genAmount.ranges.byLo;
+                sf_meta->velmax = g->genAmount.ranges.byHi;
+            }
+            break;
+
+        case SFGEN_coarseTune:
+            if (preset)
+                sf_meta->tune += g->genAmount.shAmount * 100;
+            else
+                sf_meta->tune = g->genAmount.shAmount * 100;
+            break;
+
+        case SFGEN_fineTune:
+            if (preset)
+                sf_meta->tune += g->genAmount.shAmount;
+            else
+                sf_meta->tune = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_sampleModes:
+            sf_meta->mode = g->genAmount.wAmount;
+            break;
+
+        case SFGEN_scaleTuning:
+            if (preset)
+                sf_meta->keyscale += g->genAmount.shAmount;
+            else
+                sf_meta->keyscale = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_overridingRootKey:
+            if (g->genAmount.shAmount >= 0 && g->genAmount.shAmount <= 127)
+                sf_meta->key = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_exclusiveClass:
+            sf_meta->exclusiveClass = g->genAmount.shAmount;
+            break;
+
+        case SFGEN_initialAttenuation:
+            if (preset)
+                sf_meta->initialAttenuation += g->genAmount.shAmount;
+            else
+                sf_meta->initialAttenuation = g->genAmount.shAmount;
+            break;
+        case SFGEN_chorusEffectsSend:
+            if (preset)
+                sf_meta->chorusEffectsSend += g->genAmount.shAmount;
+            else
+                sf_meta->chorusEffectsSend = g->genAmount.shAmount;
+            break;
+        case SFGEN_reverbEffectsSend:
+            if (preset)
+                sf_meta->reverbEffectsSend += g->genAmount.shAmount;
+            else
+                sf_meta->reverbEffectsSend = g->genAmount.shAmount;
+            break;
+        case SFGEN_modLfoToPitch:
+            if (preset)
+                sf_meta->modLfoToPitch += g->genAmount.shAmount;
+            else
+                sf_meta->modLfoToPitch = g->genAmount.shAmount;
+            break;
+        case SFGEN_vibLfoToPitch:
+            if (preset)
+                sf_meta->vibLfoToPitch += g->genAmount.shAmount;
+            else
+                sf_meta->vibLfoToPitch = g->genAmount.shAmount;
+            break;
+        case SFGEN_velocity:
+            sf_meta->velocity = g->genAmount.shAmount;
+            break;
+        case SFGEN_keynum:
+            sf_meta->keynum = g->genAmount.shAmount;
+            break;
+        case SFGEN_keynumToModEnvHold:
+            if (preset)
+                sf_meta->keynumToModEnvHold += g->genAmount.shAmount;
+            else
+                sf_meta->keynumToModEnvHold = g->genAmount.shAmount;
+            break;
+        case SFGEN_keynumToModEnvDecay:
+            if (preset)
+                sf_meta->keynumToModEnvDecay += g->genAmount.shAmount;
+            else
+                sf_meta->keynumToModEnvDecay = g->genAmount.shAmount;
+            break;
+        case SFGEN_keynumToVolEnvHold:
+            if (preset)
+                sf_meta->keynumToVolEnvHold += g->genAmount.shAmount;
+            else
+                sf_meta->keynumToVolEnvHold = g->genAmount.shAmount;
+            break;
+        case SFGEN_keynumToVolEnvDecay:
+            if (preset)
+                sf_meta->keynumToVolEnvDecay += g->genAmount.shAmount;
+            else
+                sf_meta->keynumToVolEnvDecay = g->genAmount.shAmount;
+            break;
+        case SFGEN_modLfoToVolume:
+            if (preset)
+                sf_meta->modLfoToVolume += g->genAmount.shAmount;
+            else
+                sf_meta->modLfoToVolume = g->genAmount.shAmount;
+            break;
+        case SFGEN_delayModLFO:
+            if (preset)
+                sf_meta->delayModLFO += g->genAmount.shAmount;
+            else
+                sf_meta->delayModLFO = g->genAmount.shAmount;
+            break;
+        case SFGEN_freqModLFO:
+            if (preset)
+                sf_meta->freqModLFO += g->genAmount.shAmount;
+            else
+                sf_meta->freqModLFO = g->genAmount.shAmount;
+            break;
+        case SFGEN_delayVibLFO:
+            if (preset)
+                sf_meta->delayVibLFO += g->genAmount.shAmount;
+            else
+                sf_meta->delayVibLFO = g->genAmount.shAmount;
+            break;
+        case SFGEN_freqVibLFO:
+            if (preset)
+                sf_meta->freqVibLFO += g->genAmount.shAmount;
+            else
+                sf_meta->freqVibLFO = g->genAmount.shAmount;
+            break;
+        case SFGEN_delayModEnv:
+            if (preset)
+                sf_meta->delayModEnv += g->genAmount.shAmount;
+            else
+                sf_meta->delayModEnv = g->genAmount.shAmount;
+            break;
+        case SFGEN_attackModEnv:
+            if (preset)
+                sf_meta->attackModEnv += g->genAmount.shAmount;
+            else
+                sf_meta->attackModEnv = g->genAmount.shAmount;
+            break;
+        case SFGEN_holdModEnv:
+            if (preset)
+                sf_meta->holdModEnv += g->genAmount.shAmount;
+            else
+                sf_meta->holdModEnv = g->genAmount.shAmount;
+            break;
+        case SFGEN_decayModEnv:
+            if (preset)
+                sf_meta->decayModEnv += g->genAmount.shAmount;
+            else
+                sf_meta->decayModEnv = g->genAmount.shAmount;
+            break;
+        case SFGEN_releaseModEnv:
+            if (preset)
+                sf_meta->releaseModEnv += g->genAmount.shAmount;
+            else
+                sf_meta->releaseModEnv = g->genAmount.shAmount;
+            break;
+        case SFGEN_initialFilterQ:
+            if (preset)
+                sf_meta->initialFilterQ += g->genAmount.shAmount;
+            else
+                sf_meta->initialFilterQ = g->genAmount.shAmount;
+            break;
+        case SFGEN_initialFilterFc:
+            if (preset)
+                sf_meta->initialFilterFc += g->genAmount.shAmount;
+            else
+                sf_meta->initialFilterFc = g->genAmount.shAmount;
+            break;
+        case SFGEN_modEnvToFilterFc:
+            if (preset)
+                sf_meta->modEnvToFilterFc += g->genAmount.shAmount;
+            else
+                sf_meta->modEnvToFilterFc = g->genAmount.shAmount;
+            break;
+        case SFGEN_modLfoToFilterFc:
+            if (preset)
+                sf_meta->modLfoToFilterFc += g->genAmount.shAmount;
+            else
+                sf_meta->modLfoToFilterFc = g->genAmount.shAmount;
+            break;
+        case SFGEN_instrument:
+            sf_meta->instrument_look_index = g->genAmount.shAmount;
+            break;
+        case SFGEN_sampleID:
+            sf_meta->sample_look_index = g->genAmount.shAmount;
+            break;
+        case SFGEN_unused5:
+            sf_meta->instrument_unused5 = g->genAmount.shAmount;
+            if (options.opt_verbose) printf("APS parameter %d\n", sf_meta->instrument_unused5);
+            break;
+        default:
+            fprintf(stderr,"Warning: generator %d with value %d not handled at the %s %s level\n",
+                    g->sfGenOper, g->genAmount.shAmount,
+                    global? "global":"local",
+                    preset? "preset":"instrument");
+            break;
+    }
+}
+
 /* copies data from the waiting list into a GUS .pat struct */
 static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
                                  int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, unsigned char *mem,
@@ -1162,64 +1485,16 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
     int debug_examples = 0;
 
-
     /* SoundFont parameters for the current sample */
-    /* TODO: make struct? */
-    int sf_instrument_look_index;
-    int sf_instrument_unused5;
-    int sf_sample_look_index;
-    int sf_start, sf_end;
-    int sf_loop_start, sf_loop_end;
-    int sf_key, sf_tune;
-    int sf_pan;
-    int sf_keyscale;
-    int sf_keymin, sf_keymax;
-    int sf_velmin, sf_velmax;
-    int sf_sustain_mod_env;
-    int sf_mod_env_to_pitch;
-    int sf_delay_vol_env;
-    int sf_attack_vol_env;
-    int sf_hold_vol_env;
-    int sf_decay_vol_env;
-    int sf_release_vol_env;
-    int sf_sustain_level;
-    int sf_mode;
-    int sp_freq_center;
-    int sf_exclusiveClass;
+    SF_Meta sf_meta;
 
-    int sf_chorusEffectsSend;
-    int sf_reverbEffectsSend;
-    int sf_initialAttenuation;
-    int sf_modLfoToPitch;
-    int sf_vibLfoToPitch;
-    int sf_velocity;
-    int sf_keynum;
-    int sf_keynumToModEnvHold;
-    int sf_keynumToModEnvDecay;
-    int sf_keynumToVolEnvHold;
-    int sf_keynumToVolEnvDecay;
-    int sf_modLfoToVolume;
-    int sf_delayModLFO;
     int sp_delayModLFO;
-    int sf_freqModLFO;
-    int sf_delayVibLFO;
-    int sf_freqVibLFO;
-    int sf_delayModEnv;
-    int sf_attackModEnv;
-    int sf_holdModEnv;
-    int sf_decayModEnv;
-    int sf_releaseModEnv;
-
-
-    short sf_initialFilterQ;
-    short sf_initialFilterFc;
-    short sf_modEnvToFilterFc;
-    short sf_modLfoToFilterFc;
     short sp_resonance;
     short sp_modEnvToFilterFc;
     short sp_modLfoToFilterFc;
     short sp_modEnvToPitch;
     short sp_cutoff_freq;
+    int sp_freq_center;
     int sp_vibrato_depth, sp_vibrato_delay;
     unsigned char sp_vibrato_control_ratio, sp_vibrato_sweep_increment;
     int sp_tremolo_depth;
@@ -1419,98 +1694,98 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         vol = waiting_list[n].volume;
 
         /* set default generator values */
-        sf_instrument_look_index = -1; /* index into INST subchunk */
-        sf_sample_look_index = -1;
+        sf_meta.instrument_look_index = -1; /* index into INST subchunk */
+        sf_meta.sample_look_index = -1;
 
-        sf_start = sample->dwStart;
-        sf_end = sample->dwEnd;
-        sf_loop_start = sample->dwStartloop;
-        sf_loop_end = sample->dwEndloop;
-        sf_key = sample->byOriginalKey;
-        sf_tune = sample->chCorrection;
-        sf_sustain_mod_env = 0;
-        sf_mod_env_to_pitch = 0;
+        sf_meta.start = sample->dwStart;
+        sf_meta.end = sample->dwEnd;
+        sf_meta.loop_start = sample->dwStartloop;
+        sf_meta.loop_end = sample->dwEndloop;
+        sf_meta.key = sample->byOriginalKey;
+        sf_meta.tune = sample->chCorrection;
+        sf_meta.sustain_mod_env = 0;
+        sf_meta.mod_env_to_pitch = 0;
 
-        sf_delay_vol_env = -12000;
-        sf_attack_vol_env = -12000;
-        sf_hold_vol_env = -12000;
-        sf_decay_vol_env = -12000;
-        sf_release_vol_env = -12000;
-        sf_sustain_level = 250;
+        sf_meta.delay_vol_env = -12000;
+        sf_meta.attack_vol_env = -12000;
+        sf_meta.hold_vol_env = -12000;
+        sf_meta.decay_vol_env = -12000;
+        sf_meta.release_vol_env = -12000;
+        sf_meta.sustain_level = 250;
 
-        sf_delayModEnv = -12000;
-        sf_attackModEnv = -12000;
-        sf_holdModEnv = -12000;
-        sf_decayModEnv = -12000;
-        sf_releaseModEnv = -12000;
+        sf_meta.delayModEnv = -12000;
+        sf_meta.attackModEnv = -12000;
+        sf_meta.holdModEnv = -12000;
+        sf_meta.decayModEnv = -12000;
+        sf_meta.releaseModEnv = -12000;
 
-        sf_pan = 0;
-        sf_keyscale = 100;
-        sf_keymin = 0;
-        sf_keymax = 127;
-        sf_velmin = 0;
-        sf_velmax = 127;
-        sf_mode = 0;
+        sf_meta.pan = 0;
+        sf_meta.keyscale = 100;
+        sf_meta.keymin = 0;
+        sf_meta.keymax = 127;
+        sf_meta.velmin = 0;
+        sf_meta.velmax = 127;
+        sf_meta.mode = 0;
         /* I added the following. (gl) */
-        sf_instrument_unused5 = -1;
-        sf_exclusiveClass = 0;
-        sf_initialAttenuation = 0;
-        sf_chorusEffectsSend = 0;
-        sf_reverbEffectsSend = 0;
-        sf_modLfoToPitch = 0;
-        sf_vibLfoToPitch = 0;
-        sf_keynum = -1;
-        sf_velocity = -1;
-        sf_keynumToModEnvHold = 0;
-        sf_keynumToModEnvDecay = 0;
-        sf_keynumToVolEnvHold = 0;
-        sf_keynumToVolEnvDecay = 0;
-        sf_modLfoToVolume = 0;
-        sf_delayModLFO = 0;
-        sf_freqModLFO = 0;
-        sf_delayVibLFO = 0;
-        sf_freqVibLFO = 0;
-        sf_initialFilterQ = 0;
-        sf_initialFilterFc = 0;
-        sf_modEnvToFilterFc = 0;
-        sf_modLfoToFilterFc = 0;
+        sf_meta.instrument_unused5 = -1;
+        sf_meta.exclusiveClass = 0;
+        sf_meta.initialAttenuation = 0;
+        sf_meta.chorusEffectsSend = 0;
+        sf_meta.reverbEffectsSend = 0;
+        sf_meta.modLfoToPitch = 0;
+        sf_meta.vibLfoToPitch = 0;
+        sf_meta.keynum = -1;
+        sf_meta.velocity = -1;
+        sf_meta.keynumToModEnvHold = 0;
+        sf_meta.keynumToModEnvDecay = 0;
+        sf_meta.keynumToVolEnvHold = 0;
+        sf_meta.keynumToVolEnvDecay = 0;
+        sf_meta.modLfoToVolume = 0;
+        sf_meta.delayModLFO = 0;
+        sf_meta.freqModLFO = 0;
+        sf_meta.delayVibLFO = 0;
+        sf_meta.freqVibLFO = 0;
+        sf_meta.initialFilterQ = 0;
+        sf_meta.initialFilterFc = 0;
+        sf_meta.modEnvToFilterFc = 0;
+        sf_meta.modLfoToFilterFc = 0;
 
         sp_freq_center = 60;
 
         /* process the lists of generator data */
         for (i = 0; i < global_izone_count; i++)
-            apply_generator(&global_izone[i], FALSE, TRUE);
+            apply_generator(options, &sf_meta, &global_izone[i], FALSE, TRUE);
 
         for (i = 0; i < igen_count; i++)
-            apply_generator(&igen[i], FALSE, FALSE);
+            apply_generator(options, &sf_meta, &igen[i], FALSE, FALSE);
 
         for (i = 0; i < global_pzone_count; i++)
-            apply_generator(&global_pzone[i], TRUE, TRUE);
+            apply_generator(options, &sf_meta, &global_pzone[i], TRUE, TRUE);
 
         for (i = 0; i < pgen_count; i++)
-            apply_generator(&pgen[i], TRUE, FALSE);
+            apply_generator(options, &sf_meta, &pgen[i], TRUE, FALSE);
 
         /* convert SoundFont values into some more useful formats */
-        length = sf_end - sf_start;
+        length = sf_meta.end - sf_meta.start;
 
         if (length < 0) {
             fprintf(stderr, "\nSample for %s has negative length.\n", name);
             return FALSE;
         }
-        sf_loop_start = MID(0, sf_loop_start - sf_start, sf_end);
-        sf_loop_end = MID(0, sf_loop_end - sf_start, sf_end);
+        sf_meta.loop_start = MID(0, sf_meta.loop_start - sf_meta.start, sf_meta.end);
+        sf_meta.loop_end = MID(0, sf_meta.loop_end - sf_meta.start, sf_meta.end);
 
-        /*sf_pan = MID(0, sf_pan*16/1000+7, 15);*/
-        sf_pan = MID(0, sf_pan * 256 / 1000 + 127, 255);
+        /*sf_meta.pan = MID(0, sf_meta.pan*16/1000+7, 15);*/
+        sf_meta.pan = MID(0, sf_meta.pan * 256 / 1000 + 127, 255);
 
-        if (sf_keyscale == 100) freq_scale = 1024;
-        else freq_scale = MID(0, sf_keyscale * 1024 / 100, 2048);
+        if (sf_meta.keyscale == 100) freq_scale = 1024;
+        else freq_scale = MID(0, sf_meta.keyscale * 1024 / 100, 2048);
 
         /* I don't know about this tuning. (gl) */
-        //sf_tune += sf_mod_env_to_pitch * MID(0, 1000-sf_sustain_mod_env, 1000) / 1000;
+        //sf_meta.tune += sf_meta.mod_env_to_pitch * MID(0, 1000-sf_meta.sustain_mod_env, 1000) / 1000;
 
-        min_freq = freq_table[sf_keymin];
-        max_freq = freq_table[sf_keymax];
+        min_freq = freq_table[sf_meta.keymin];
+        max_freq = freq_table[sf_meta.keymax];
 
         root_freq = calc_root_pitch();
 
@@ -1524,18 +1799,18 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         if (!lay->set[SF_releaseEnv2] && banknum < 128) release = 400;
         if (!lay->set[SF_decayEnv2] && banknum < 128) decay = 400;
     */
-        delay = timecent2msec(sf_delay_vol_env);
-        attack = timecent2msec(sf_attack_vol_env);
-        hold = timecent2msec(sf_hold_vol_env);
-        decay = timecent2msec(sf_decay_vol_env);
-        release = timecent2msec(sf_release_vol_env);
+        delay = timecent2msec(sf_meta.delay_vol_env);
+        attack = timecent2msec(sf_meta.attack_vol_env);
+        hold = timecent2msec(sf_meta.hold_vol_env);
+        decay = timecent2msec(sf_meta.decay_vol_env);
+        release = timecent2msec(sf_meta.release_vol_env);
 
         mod_sustain = calc_mod_sustain();
-        mod_delay = timecent2msec(sf_delayModEnv);
-        mod_attack = timecent2msec(sf_attackModEnv);
-        mod_hold = timecent2msec(sf_holdModEnv);
-        mod_decay = timecent2msec(sf_decayModEnv);
-        mod_release = timecent2msec(sf_releaseModEnv);
+        mod_delay = timecent2msec(sf_meta.delayModEnv);
+        mod_attack = timecent2msec(sf_meta.attackModEnv);
+        mod_hold = timecent2msec(sf_meta.holdModEnv);
+        mod_decay = timecent2msec(sf_meta.decayModEnv);
+        mod_release = timecent2msec(sf_meta.releaseModEnv);
 
         /* The output from this code is almost certainly not a 'correct'
          * .pat file. There are a lot of things I don't know about the
@@ -1567,13 +1842,13 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         if (options.opt_8bit) {
             mem_write32(length, mem, mem_size, mem_alloced);             /* waveform size */
-            mem_write32(sf_loop_start, mem, mem_size, mem_alloced);      /* loop start */
-            mem_write32(sf_loop_end, mem, mem_size, mem_alloced);        /* loop end */
+            mem_write32(sf_meta.loop_start, mem, mem_size, mem_alloced);      /* loop start */
+            mem_write32(sf_meta.loop_end, mem, mem_size, mem_alloced);        /* loop end */
         }
         else {
             mem_write32(length * 2, mem, mem_size, mem_alloced);           /* waveform size */
-            mem_write32(sf_loop_start * 2, mem, mem_size, mem_alloced);    /* loop start */
-            mem_write32(sf_loop_end * 2, mem, mem_size, mem_alloced);      /* loop end */
+            mem_write32(sf_meta.loop_start * 2, mem, mem_size, mem_alloced);    /* loop start */
+            mem_write32(sf_meta.loop_end * 2, mem, mem_size, mem_alloced);      /* loop end */
         }
 
         mem_write16(sample->dwSampleRate, mem, mem_size, mem_alloced);  /* sample freq */
@@ -1583,16 +1858,16 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write32(root_freq, mem, mem_size, mem_alloced);             /* root frequency */
 
         mem_write16(512, mem, mem_size, mem_alloced);                   /* finetune */
-        /*mem_write8(sf_pan, mem, mem_size, mem_alloced);*/                 /* balance */
+        /*mem_write8(sf_meta.pan, mem, mem_size, mem_alloced);*/                 /* balance */
         mem_write8(7, mem, mem_size, mem_alloced);                     /* balance = middle */
 
 
         if (debug_examples < 0) {
             debug_examples++;
-            printf("attack_vol_env=%d, hold_vol_env=%d, decay_vol_env=%d, release_vol_env=%d, sf_delay=%d\n",
-                   sf_attack_vol_env, sf_hold_vol_env, sf_decay_vol_env, sf_release_vol_env,
-                   sf_delay_vol_env);
-            printf("iA= %d, sp_volume=%d sustain=%d attack=%d ATTACK=%d\n", sf_initialAttenuation,
+            printf("attack_vol_env=%d, hold_vol_env=%d, decay_vol_env=%d, release_vol_env=%d, sf_meta.delay=%d\n",
+                   sf_meta.attack_vol_env, sf_meta.hold_vol_env, sf_meta.decay_vol_env, sf_meta.release_vol_env,
+                   sf_meta.delay_vol_env);
+            printf("iA= %d, sp_volume=%d sustain=%d attack=%d ATTACK=%d\n", sf_meta.initialAttenuation,
                    sp_volume, sustain, attack, msec2gus(attack, sp_volume));
             printf("\thold=%d r=%d HOLD=%d\n", hold, sp_volume - 1, msec2gus(hold, sp_volume - 1));
             printf("\tdecay=%d r=%d DECAY=%d\n", hold, sp_volume - 1 - sustain,
@@ -1631,7 +1906,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         convert_lfo();
 #endif
 
-        flags = getmodes(sf_mode, program, wanted_bank);
+        flags = getmodes(sf_meta.mode, program, wanted_bank);
 
         mem_write8(flags, mem, mem_size, mem_alloced);                  /* write sample mode */
 
@@ -1650,7 +1925,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         /* Begin SF2 extensions */
         mem_write8(delay, mem, mem_size, mem_alloced);
-        mem_write8(sf_exclusiveClass, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.exclusiveClass, mem, mem_size, mem_alloced);
         mem_write8(sp_vibrato_delay, mem, mem_size, mem_alloced);
 
         mem_write8(msec2gus(mod_attack, sp_volume), mem, mem_size, mem_alloced);                   /* envelope rates */
@@ -1669,8 +1944,8 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         mem_write8(sp_delayModLFO, mem, mem_size, mem_alloced);
 
-        mem_write8(sf_chorusEffectsSend, mem, mem_size, mem_alloced);
-        mem_write8(sf_reverbEffectsSend, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.chorusEffectsSend, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.reverbEffectsSend, mem, mem_size, mem_alloced);
 
         calc_resonance();
         mem_write16(sp_resonance, mem, mem_size, mem_alloced);
@@ -1682,19 +1957,19 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write8(sp_modEnvToFilterFc, mem, mem_size, mem_alloced);
         mem_write8(sp_modLfoToFilterFc, mem, mem_size, mem_alloced);
 
-        mem_write8(sf_keynumToModEnvHold, mem, mem_size, mem_alloced);
-        mem_write8(sf_keynumToModEnvDecay, mem, mem_size, mem_alloced);
-        mem_write8(sf_keynumToVolEnvHold, mem, mem_size, mem_alloced);
-        mem_write8(sf_keynumToVolEnvDecay, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.keynumToModEnvHold, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.keynumToModEnvDecay, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.keynumToVolEnvHold, mem, mem_size, mem_alloced);
+        mem_write8(sf_meta.keynumToVolEnvDecay, mem, mem_size, mem_alloced);
 
-        mem_write8(sf_pan, mem, mem_size, mem_alloced);                 /* balance */
+        mem_write8(sf_meta.pan, mem, mem_size, mem_alloced);                 /* balance */
 
         mem_write16(sp_lfo_phase_increment, mem, mem_size, mem_alloced);    /* lfo */
         mem_write8(sp_lfo_depth, mem, mem_size, mem_alloced);
 
-        if (sf_instrument_unused5 == -1)
+        if (sf_meta.instrument_unused5 == -1)
             mem_write8(255, mem, mem_size, mem_alloced);
-        else mem_write8(sf_instrument_unused5, mem, mem_size, mem_alloced);
+        else mem_write8(sf_meta.instrument_unused5, mem, mem_size, mem_alloced);
 
 #if 0
         /* 36 (34?) bytes were reserved; now 1 left */
