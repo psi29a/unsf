@@ -1604,7 +1604,231 @@ static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta)
     sp_meta->vibrato_delay = delay;
 }
 
+/* calculate root pitch */
+/* This code is derived from some version of Timidity++ and comes
+ * from Takashi Iwai and/or Masanao Izumi (who are not responsible
+ * for my interpretation of it). (gl)
+ */
+static int calc_root_pitch(SP_Meta *sp_meta, SF_Meta *sf_meta)
+{
+    int root, tune;
 
+    root = sf_meta->key; /* sample originalPitch */
+    tune = sf_meta->tune; /* sample pitchCorrection */
+
+    /* tuning */
+    /*tune += sf_meta->keyscale; Why did I say this? */
+    /* ??
+		tune += lay->val[SF_coarseTune] * 100
+			+ lay->val[SF_fineTune];
+    */
+
+    /* it's too high.. */
+    if (root >= sf_meta->keymax + 60)
+        root -= 60;
+/*
+	if (lay->set[SF_keyRange] &&
+	    root >= HI_VAL(lay->val[SF_keyRange]) + 60)
+		root -= 60;
+
+*/
+
+    while (tune <= -100) {
+        root++;
+        tune += 100;
+    }
+    while (tune > 0) {
+        root--;
+        tune -= 100;
+    }
+
+    if (root > 0) sp_meta->freq_center = root;
+    else sp_meta->freq_center = 60;
+
+    tune = (-tune * 256) / 100;
+
+    if (root > 127)
+        return (int)((double)freq_table[127] *
+                     bend_coarse[root - 127] * bend_fine[tune]);
+    else if (root < 0)
+        return (int)((double)freq_table[0] /
+                     bend_coarse[-root] * bend_fine[tune]);
+    else
+        return (int)((double)freq_table[root] * bend_fine[tune]);
+
+}
+
+#define CB_TO_VOLUME(centibel) (255 * (1.0 - ((double)(centibel)/100.0) / (1200.0 * log10(2.0)) ))
+/* convert peak volume to linear volume (0-255) */
+static unsigned int calc_volume(SF_Meta *sf_meta)
+{
+    int v;
+    double ret;
+
+    if (!sf_meta->initialAttenuation) return 255;
+    v = sf_meta->initialAttenuation;
+    if (v < 0) v = 0;
+    else if (v > 960) v = 960;
+    ret = CB_TO_VOLUME((double)v);
+    if (ret < 1.0) return 0;
+    if (ret > 255.0) return 255;
+    return (unsigned int)ret;
+}
+
+#define TO_VOLUME(centibel) (unsigned char)(255 * pow(10.0, -(double)(centibel)/200.0))
+/* convert sustain volume to linear volume */
+static unsigned char calc_sustain(SF_Meta *sf_meta)
+{
+    int level;
+
+    if (!sf_meta->sustain_level) return 250;
+    level = TO_VOLUME(sf_meta->sustain_level);
+    if (level > 253) level = 253;
+    if (level < 100) level = 250; /* Protect against bogus value? This is for PC42c saxes. */
+    return (unsigned char)level;
+}
+static unsigned int calc_mod_sustain(SF_Meta *sf_meta)
+{
+    if (!sf_meta->sustain_mod_env) return 250;
+    return TO_VOLUME(sf_meta->sustain_mod_env);
+}
+static void calc_resonance(SP_Meta *sp_meta, SF_Meta *sf_meta)
+{
+    short val = sf_meta->initialFilterQ;
+    //sp_meta->resonance = pow(10.0, (double)val / 2.0 / 200.0) - 1;
+    sp_meta->resonance = val;
+    if (sp_meta->resonance < 0)
+        sp_meta->resonance = 0;
+}
+
+
+/* calculate cutoff/resonance frequency */
+static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta)
+{
+    short val;
+
+    if (sf_meta->initialFilterFc < 1) val = 13500;
+    else val = sf_meta->initialFilterFc;
+
+    if (sf_meta->modEnvToFilterFc /*&& sf_meta->initialFilterFc*/) {
+        sp_meta->modEnvToFilterFc = pow(2.0, ((double)sf_meta->modEnvToFilterFc/1200.0));
+    }
+    else sp_meta->modEnvToFilterFc = 0;
+
+    if (sf_meta->modLfoToFilterFc /* && sf_meta->initialFilterFc*/) {
+        sp_meta->modLfoToFilterFc = pow(2.0, ((double)sf_meta->modLfoToFilterFc/1200.0));
+    }
+    else sp_meta->modLfoToFilterFc = 0;
+
+    if (sf_meta->mod_env_to_pitch) {
+        sp_meta->modEnvToPitch = pow(2.0, ((double)sf_meta->mod_env_to_pitch/1200.0));
+    }
+    else sp_meta->modEnvToPitch = 0;
+
+    sp_meta->cutoff_freq = TO_HZ(val);
+    if (val < 0 || val > 24000) val = 19192;
+}
+
+#ifdef LFO_DEBUG
+static void
+      convert_lfo(char *name, int program, int banknum, int wanted_bank)
+#else
+static void
+convert_lfo (SP_Meta *sp_meta, SF_Meta *sf_meta)
+#endif
+{
+    int freq = 0, shift = 0;
+
+    if (!sf_meta->modLfoToFilterFc) {
+        sp_meta->lfo_depth = sp_meta->lfo_phase_increment = 0;
+        return;
+    }
+
+    shift = sf_meta->modLfoToFilterFc;
+    if (sf_meta->freqModLFO) freq = sf_meta->freqModLFO;
+
+    shift = (int)(pow(2.0, ((double)shift/1200.0)) * VIBRATO_RATE_TUNING);
+
+    sp_meta->lfo_depth = shift;
+
+    if (!freq) freq = 8 * 20;
+    else freq = TO_HZ20(freq);
+
+    if (freq < 1) freq = 1;
+
+    sp_meta->lfo_phase_increment = (short)freq;
+#ifdef LFO_DEBUG
+    fprintf(stderr,"name=%s, bank=%d(%d), prog=%d, freq=%d\n",
+			name, banknum, wanted_bank, program, freq);
+#endif
+}
+
+/* Bits in modes: */
+#define MODES_16BIT	(1<<0)
+#define MODES_UNSIGNED	(1<<1)
+#define MODES_LOOPING	(1<<2)
+#define MODES_PINGPONG	(1<<3)
+#define MODES_REVERSE	(1<<4)
+#define MODES_SUSTAIN	(1<<5)
+#define MODES_ENVELOPE	(1<<6)
+#define MODES_FAST_RELEASE	(1<<7)
+
+/* The sampleFlags value, in my experience, is not to be trusted,
+ * so the following uses some heuristics to guess whether to
+ * set looping and sustain modes. (gl)
+ */
+static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlags, int program, int banknum)
+{
+    int modes;
+    int orig_sampleFlags = sampleFlags;
+
+    modes = MODES_ENVELOPE;
+
+    if (options.opt_8bit)
+        modes |= MODES_UNSIGNED;                      /* signed waveform */
+    else
+        modes |= MODES_16BIT;                      /* 16-bit waveform */
+
+
+    if (sampleFlags == 3) modes |= MODES_FAST_RELEASE;
+
+    /* arbitrary adjustments (look at sustain of vol envelope? ) */
+
+    if (options.opt_adjust_sample_flags) {
+
+        if (sampleFlags && sf_sustain_mod_env == 0) sampleFlags = 3;
+        else if (sampleFlags && sf_sustain_mod_env >= 1000) sampleFlags = 1;
+        else if (banknum != 128 && sampleFlags == 1) {
+            /* organs, accordians */
+            if (program >= 16 && program <= 23) sampleFlags = 3;
+                /* strings */
+            else if (program >= 40 && program <= 44) sampleFlags = 3;
+                /* strings, voice */
+            else if (program >= 48 && program <= 54) sampleFlags = 3;
+                /* horns, woodwinds */
+            else if (program >= 56 && program <= 79) sampleFlags = 3;
+                /* lead, pad, fx */
+            else if (program >= 80 && program <=103) sampleFlags = 3;
+                /* bagpipe, fiddle, shanai */
+            else if (program >=109 && program <=111) sampleFlags = 3;
+                /* breath noise, ... telephone, helicopter */
+            else if (program >=121 && program <=125) sampleFlags = 3;
+                /* applause */
+            else if (program ==126) sampleFlags = 3;
+        }
+
+        if (options.opt_verbose && orig_sampleFlags != sampleFlags)
+            printf("changed sampleFlags from %d to %d\n",
+                   orig_sampleFlags, sampleFlags);
+    }
+    else if (sampleFlags == 1) sampleFlags = 3;
+
+    if (sampleFlags == 1 || sampleFlags == 3)
+        modes |= MODES_LOOPING;
+    if (sampleFlags == 3)
+        modes |= MODES_SUSTAIN;
+    return modes;
+}
 
 /* copies data from the waiting list into a GUS .pat struct */
 static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
@@ -1920,10 +2144,10 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         min_freq = freq_table[sf_meta.keymin];
         max_freq = freq_table[sf_meta.keymax];
 
-        root_freq = calc_root_pitch();
+        root_freq = calc_root_pitch(&sp_meta, &sf_meta);
 
-        sustain = calc_sustain();
-        sp_meta.volume = calc_volume();
+        sustain = calc_sustain(&sf_meta);
+        sp_meta.volume = calc_volume(&sf_meta);
 
         if (sustain < 0) sustain = 0;
         if (sustain > sp_meta.volume - 2) sustain = sp_meta.volume - 2;
@@ -1938,7 +2162,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         decay = timecent2msec(sf_meta.decay_vol_env);
         release = timecent2msec(sf_meta.release_vol_env);
 
-        mod_sustain = calc_mod_sustain();
+        mod_sustain = calc_mod_sustain(&sf_meta);
         mod_delay = timecent2msec(sf_meta.delayModEnv);
         mod_attack = timecent2msec(sf_meta.attackModEnv);
         mod_hold = timecent2msec(sf_meta.holdModEnv);
@@ -2034,12 +2258,12 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write8(sp_meta.vibrato_depth, mem, mem_size, mem_alloced);               /* vibrato depth */
 
 #ifdef LFO_DEBUG
-        convert_lfo(name, program, banknum, wanted_bank);
+        convert_lfo(&sp_meta, &sf_meta, name, program, banknum, wanted_bank);
 #else
-        convert_lfo();
+        convert_lfo(&sp_meta, &sf_meta);
 #endif
 
-        flags = getmodes(sf_meta.mode, program, wanted_bank);
+        flags = getmodes(options, sf_meta.sustain_mod_env, sf_meta.mode, program, wanted_bank);
 
         mem_write8(flags, mem, mem_size, mem_alloced);                  /* write sample mode */
 
@@ -2049,7 +2273,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         if (options.opt_adjust_volume) {
             if (options.opt_veryverbose) printf("vol comp %d", sp_meta.volume);
-            sample_volume = adjust_volume(sample->dwStart, length);
+            sample_volume = adjust_volume(&sf_meta, sample->dwStart, length);
             if (options.opt_veryverbose) printf(" -> %d\n", sample_volume);
         }
         else sample_volume = sp_meta.volume;
@@ -2080,10 +2304,10 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write8(sf_meta.chorusEffectsSend, mem, mem_size, mem_alloced);
         mem_write8(sf_meta.reverbEffectsSend, mem, mem_size, mem_alloced);
 
-        calc_resonance();
+        calc_resonance(&sp_meta, &sf_meta);
         mem_write16(sp_meta.resonance, mem, mem_size, mem_alloced);
 
-        calc_cutoff();
+        calc_cutoff(&sp_meta, &sf_meta);
         mem_write16(sp_meta.cutoff_freq, mem, mem_size, mem_alloced);
 
         mem_write8(sp_meta.modEnvToPitch, mem, mem_size, mem_alloced);
