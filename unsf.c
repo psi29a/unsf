@@ -42,56 +42,8 @@
 
 
 
-/* writes a byte to the memory buffer */
-static void mem_write8(int val)
-{
-   if (mem_size >= mem_alloced) {
-      mem_alloced += 4096;
-      if (!(mem = realloc(mem, mem_alloced))) {
-	      fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", mem_alloced, mem_size);
-	      exit(1);
-      }
-   }
-
-   mem[mem_size] = val;
-   mem_size++;
-}
 
 
-
-/* writes a word to the memory buffer (little endian) */
-static void mem_write16(int val)
-{
-   mem_write8(val & 0xFF);
-   mem_write8((val >> 8) & 0xFF);
-}
-
-
-
-/* writes a long to the memory buffer (little endian) */
-static void mem_write32(int val)
-{
-   mem_write8(val & 0xFF);
-   mem_write8((val >> 8) & 0xFF);
-   mem_write8((val >> 16) & 0xFF);
-   mem_write8((val >> 24) & 0xFF);
-}
-
-
-/* writes a block of data the memory buffer */
-static void mem_write_block(void *data, int size)
-{
-   if (mem_size+size > mem_alloced) {
-      mem_alloced = (mem_alloced + size + 4095) & ~4095;
-      if (!(mem = realloc(mem, mem_alloced))) {
-	      fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", mem_alloced, mem_size);
-	      exit(1);
-      }
-   }
-
-   memcpy(mem+mem_size, data, size);
-   mem_size += size;
-}
 
 
 

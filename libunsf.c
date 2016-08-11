@@ -1090,10 +1090,56 @@ static void shorten_drum_names() {
     }
 }
 
+/* writes a block of data the memory buffer */
+static void mem_write_block(void *data, int size, unsigned char *mem, int *mem_size, int *mem_alloced)
+{
+    if (*mem_size+size > *mem_alloced) {
+        *mem_alloced = (*mem_alloced + size + 4095) & ~4095;
+        if (!(mem = realloc(mem, *mem_alloced))) {
+            fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
+            exit(1);
+        }
+    }
+
+    memcpy(mem+*mem_size, data, size);
+    *mem_size += size;
+}
+
+/* writes a byte to the memory buffer */
+static void mem_write8(int val, unsigned char *mem, int *mem_size, int *mem_alloced)
+{
+    if (*mem_size >= *mem_alloced) {
+        *mem_alloced += 4096;
+        if (!(mem = realloc(mem, *mem_alloced))) {
+            fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
+            exit(1);
+        }
+    }
+
+    mem[*mem_size] = val;
+    *mem_size++;
+}
+
+/* writes a word to the memory buffer (little endian) */
+static void mem_write16(int val, unsigned char *mem, int *mem_size, int *mem_alloced)
+{
+    mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
+    mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
+}
+
+/* writes a long to the memory buffer (little endian) */
+static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_alloced)
+{
+    mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
+    mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
+    mem_write8((val >> 16) & 0xFF, mem, mem_size, mem_alloced);
+    mem_write8((val >> 24) & 0xFF, mem, mem_size, mem_alloced);
+}
+
 /* copies data from the waiting list into a GUS .pat struct */
 static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
-                                 int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, int *mem_size,
-                                 short *sf_sample_data) {
+                                 int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, unsigned char *mem,
+                                 int *mem_alloced, int *mem_size, short *sf_sample_data) {
     sfSample *sample;
     sfGenList *igen;
     sfGenList *pgen;
@@ -1189,43 +1235,37 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         *mem_size = 0;
 
-        mem_write_block("GF1PATCH110\0ID#000002\0", 22);
+        mem_write_block("GF1PATCH110\0ID#000002\0", 22, mem, mem_size, mem_alloced);
 
-        for (i = 0; i < 60 && cpyrt[i]; i++) mem_write8(cpyrt[i]);
-        for (; i < 60; i++) mem_write8(0);
+        for (i = 0; i < 60 && cpyrt[i]; i++) mem_write8(cpyrt[i], mem, mem_size, mem_alloced);
+        for (; i < 60; i++) mem_write8(0, mem, mem_size, mem_alloced);
 
-        mem_write8(1);                         /* number of instruments */
-        mem_write8(14);                        /* number of voices */
-        mem_write8(0);                         /* number of channels */
-        mem_write16(waiting_list_count);       /* number of waveforms */
-        mem_write16(127);                      /* master volume */
-        mem_write32(0);                        /* data size (wrong!) */
+        mem_write8(1, mem, mem_size, mem_alloced);                         /* number of instruments */
+        mem_write8(14, mem, mem_size, mem_alloced);                        /* number of voices */
+        mem_write8(0, mem, mem_size, mem_alloced);                         /* number of channels */
+        mem_write16(waiting_list_count, mem, mem_size, mem_alloced);       /* number of waveforms */
+        mem_write16(127, mem, mem_size, mem_alloced);                      /* master volume */
+        mem_write32(0, mem, mem_size, mem_alloced);                        /* data size (wrong!) */
 
-/* Signal SF2 extensions present */
-        mem_write_block("SF2EXT\0", 7);
+        /* Signal SF2 extensions present */
+        mem_write_block("SF2EXT\0", 7, mem, mem_size, mem_alloced);
 
-        /* Remove this -- no longer used. */
-/*
-	if (wanted_bank == 128) mem_write8(drum_samples_right[banknum][program]);
-	else mem_write8(voice_samples_right[banknum][program]);
-*/
-
-/* 36 bytes were reserved; now 29 left */
+        /* 36 bytes were reserved; now 29 left */
         for (i = 8; i < 37; i++)                   /* reserved */
-            mem_write8(0);
+            mem_write8(0, mem, mem_size, mem_alloced);
 
-        mem_write16(0);                        /* instrument number */
+        mem_write16(0, mem, mem_size, mem_alloced);                        /* instrument number */
 
         for (i = 0; name[i] && i < 16; i++)      /* instrument name */
-            mem_write8(name[i]);
+            mem_write8(name[i], mem, mem_size, mem_alloced);
 
         while (i < 16) {                       /* pad instrument name */
-            mem_write8(0);
+            mem_write8(0, mem, mem_size, mem_alloced);
             i++;
         }
 
-        mem_write32(0);                        /* instrument size (wrong!) */
-        mem_write8(1);                         /* number of layers */
+        mem_write32(0, mem, mem_size, mem_alloced);                        /* instrument size (wrong!) */
+        mem_write8(1, mem, mem_size, mem_alloced);                         /* number of layers */
 
 
         /* List of velocity layers with left and right patch counts. There is room for 10 here.
@@ -1240,7 +1280,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         if (velcount > 9) velcount_part1 = 9;
         else velcount_part1 = velcount;
 
-        mem_write8(velcount);
+        mem_write8(velcount, mem, mem_size, mem_alloced);
 
         for (k = 0; k < velcount_part1; k++) {
             if (vlist) {
@@ -1256,20 +1296,20 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
                 exit(1);
             }
 
-            mem_write8(velmin);
-            mem_write8(velmax);
-            mem_write8(left_patches);
-            mem_write8(right_patches);
+            mem_write8(velmin, mem, mem_size, mem_alloced);
+            mem_write8(velmax, mem, mem_size, mem_alloced);
+            mem_write8(left_patches, mem, mem_size, mem_alloced);
+            mem_write8(right_patches, mem, mem_size, mem_alloced);
         }
 
         for (i = 0; i < 40 - 1 - 4 * velcount_part1; i++)                   /* reserved */
-            mem_write8(0);
+            mem_write8(0, mem, mem_size, mem_alloced);
 
 
-        mem_write8(0);                         /* layer duplicate */
-        mem_write8(0);                         /* layer number */
-        mem_write32(0);                        /* layer size (wrong!) */
-        mem_write8(waiting_list_count);        /* number of samples */
+        mem_write8(0, mem, mem_size, mem_alloced);                         /* layer duplicate */
+        mem_write8(0, mem, mem_size, mem_alloced);                         /* layer number */
+        mem_write32(0, mem, mem_size, mem_alloced);                        /* layer size (wrong!) */
+        mem_write8(waiting_list_count, mem, mem_size, mem_alloced);        /* number of samples */
 
         if (velcount > velcount_part1) {
             for (k = velcount_part1; k < velcount; k++) {
@@ -1286,17 +1326,17 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
                     exit(1);
                 }
 
-                mem_write8(velmin);
-                mem_write8(velmax);
-                mem_write8(left_patches);
-                mem_write8(right_patches);
+                mem_write8(velmin, mem, mem_size, mem_alloced);
+                mem_write8(velmax, mem, mem_size, mem_alloced);
+                mem_write8(left_patches, mem, mem_size, mem_alloced);
+                mem_write8(right_patches, mem, mem_size, mem_alloced);
             }
             for (i = 0; i < 40 - 4 * (velcount - velcount_part1); i++)                   /* reserved */
-                mem_write8(0);
+                mem_write8(0, mem, mem_size, mem_alloced);
         }
         else {
             for (i = 0; i < 40; i++)                   /* reserved */
-                mem_write8(0);
+                mem_write8(0, mem, mem_size, mem_alloced);
         }
     }
     /* bodge alert!!! I don't know how to make the volume parameters come
@@ -1466,7 +1506,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         if (sf_keyscale == 100) freq_scale = 1024;
         else freq_scale = MID(0, sf_keyscale * 1024 / 100, 2048);
 
-/* I don't know about this tuning. (gl) */
+        /* I don't know about this tuning. (gl) */
         //sf_tune += sf_mod_env_to_pitch * MID(0, 1000-sf_sustain_mod_env, 1000) / 1000;
 
         min_freq = freq_table[sf_keymin];
@@ -1480,10 +1520,10 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         if (sustain < 0) sustain = 0;
         if (sustain > sp_volume - 2) sustain = sp_volume - 2;
 
-/*
-	if (!lay->set[SF_releaseEnv2] && banknum < 128) release = 400;
-	if (!lay->set[SF_decayEnv2] && banknum < 128) decay = 400;
-*/
+    /*
+        if (!lay->set[SF_releaseEnv2] && banknum < 128) release = 400;
+        if (!lay->set[SF_decayEnv2] && banknum < 128) decay = 400;
+    */
         delay = timecent2msec(sf_delay_vol_env);
         attack = timecent2msec(sf_attack_vol_env);
         hold = timecent2msec(sf_hold_vol_env);
@@ -1509,45 +1549,44 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
          */
         sample = waiting_list[n].sample;
 
-        mem_write8('s');                    /* sample name */
-        mem_write8('m');
-        mem_write8('p');
-        mem_write8('0' + (n + 1) / 10);
-        mem_write8('0' + (n + 1) % 10);
+        mem_write8('s', mem, mem_size, mem_alloced);                    /* sample name */
+        mem_write8('m', mem, mem_size, mem_alloced);
+        mem_write8('p', mem, mem_size, mem_alloced);
+        mem_write8('0' + (n + 1) / 10, mem, mem_size, mem_alloced);
+        mem_write8('0' + (n + 1) % 10, mem, mem_size, mem_alloced);
         if (waiting_list[n].stereo_mode == LEFT_SAMPLE)
-            mem_write8('L');
+            mem_write8('L', mem, mem_size, mem_alloced);
         else if (waiting_list[n].stereo_mode == RIGHT_SAMPLE)
-            mem_write8('R');
+            mem_write8('R', mem, mem_size, mem_alloced);
         else if (waiting_list[n].stereo_mode == MONO_SAMPLE)
-            mem_write8('M');
-        else mem_write8('0' + waiting_list[n].stereo_mode);
-        mem_write8(0);
+            mem_write8('M', mem, mem_size, mem_alloced);
+        else mem_write8('0' + waiting_list[n].stereo_mode, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
 
-
-        mem_write8(0);                      /* fractions */
+        mem_write8(0, mem, mem_size, mem_alloced);                      /* fractions */
 
         if (options.opt_8bit) {
-            mem_write32(length);             /* waveform size */
-            mem_write32(sf_loop_start);      /* loop start */
-            mem_write32(sf_loop_end);        /* loop end */
+            mem_write32(length, mem, mem_size, mem_alloced);             /* waveform size */
+            mem_write32(sf_loop_start, mem, mem_size, mem_alloced);      /* loop start */
+            mem_write32(sf_loop_end, mem, mem_size, mem_alloced);        /* loop end */
         }
         else {
-            mem_write32(length * 2);           /* waveform size */
-            mem_write32(sf_loop_start * 2);    /* loop start */
-            mem_write32(sf_loop_end * 2);      /* loop end */
+            mem_write32(length * 2, mem, mem_size, mem_alloced);           /* waveform size */
+            mem_write32(sf_loop_start * 2, mem, mem_size, mem_alloced);    /* loop start */
+            mem_write32(sf_loop_end * 2, mem, mem_size, mem_alloced);      /* loop end */
         }
 
-        mem_write16(sample->dwSampleRate);  /* sample freq */
+        mem_write16(sample->dwSampleRate, mem, mem_size, mem_alloced);  /* sample freq */
 
-        mem_write32(min_freq);              /* low freq */
-        mem_write32(max_freq);              /* high freq */
-        mem_write32(root_freq);             /* root frequency */
+        mem_write32(min_freq, mem, mem_size, mem_alloced);              /* low freq */
+        mem_write32(max_freq, mem, mem_size, mem_alloced);              /* high freq */
+        mem_write32(root_freq, mem, mem_size, mem_alloced);             /* root frequency */
 
-        mem_write16(512);                   /* finetune */
-        /*mem_write8(sf_pan);*/                 /* balance */
-        mem_write8(7);                     /* balance = middle */
+        mem_write16(512, mem, mem_size, mem_alloced);                   /* finetune */
+        /*mem_write8(sf_pan, mem, mem_size, mem_alloced);*/                 /* balance */
+        mem_write8(7, mem, mem_size, mem_alloced);                     /* balance = middle */
 
-/* if (wanted_bank != 128 && banknum == 0 && program == 56) debug_examples = -1; */
+
         if (debug_examples < 0) {
             debug_examples++;
             printf("attack_vol_env=%d, hold_vol_env=%d, decay_vol_env=%d, release_vol_env=%d, sf_delay=%d\n",
@@ -1562,29 +1601,29 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
             printf("  levels: %d %d %d %d\n", sp_volume, sp_volume - 1, sustain, 0);
         }
 
-        mem_write8(msec2gus(attack, sp_volume));                   /* envelope rates */
-        mem_write8(msec2gus(hold, sp_volume - 1));
-        mem_write8(msec2gus(decay, sp_volume - 1 - sustain));
-        mem_write8(msec2gus(release, 255));
-        mem_write8(0x3F);
-        mem_write8(0x3F);
+        mem_write8(msec2gus(attack, sp_volume), mem, mem_size, mem_alloced);                   /* envelope rates */
+        mem_write8(msec2gus(hold, sp_volume - 1), mem, mem_size, mem_alloced);
+        mem_write8(msec2gus(decay, sp_volume - 1 - sustain), mem, mem_size, mem_alloced);
+        mem_write8(msec2gus(release, 255), mem, mem_size, mem_alloced);
+        mem_write8(0x3F, mem, mem_size, mem_alloced);
+        mem_write8(0x3F, mem, mem_size, mem_alloced);
 
-        mem_write8(sp_volume);                    /* envelope offsets */
-        mem_write8(sp_volume - 1);
-        mem_write8(sustain);
-        mem_write8(0);
-        mem_write8(0);
-        mem_write8(0);
+        mem_write8(sp_volume, mem, mem_size, mem_alloced);                    /* envelope offsets */
+        mem_write8(sp_volume - 1, mem, mem_size, mem_alloced);
+        mem_write8(sustain, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
 
         convert_tremolo();
-        mem_write8(sp_tremolo_sweep_increment);    /* tremolo sweep */
-        mem_write8(sp_tremolo_phase_increment);    /* tremolo rate */
-        mem_write8(sp_tremolo_depth);              /* tremolo depth */
+        mem_write8(sp_tremolo_sweep_increment, mem, mem_size, mem_alloced);    /* tremolo sweep */
+        mem_write8(sp_tremolo_phase_increment, mem, mem_size, mem_alloced);    /* tremolo rate */
+        mem_write8(sp_tremolo_depth, mem, mem_size, mem_alloced);              /* tremolo depth */
 
         convert_vibrato();
-        mem_write8(sp_vibrato_sweep_increment);     /* vibrato sweep */
-        mem_write8(sp_vibrato_control_ratio);      /* vibrato rate */
-        mem_write8(sp_vibrato_depth);               /* vibrato depth */
+        mem_write8(sp_vibrato_sweep_increment, mem, mem_size, mem_alloced);     /* vibrato sweep */
+        mem_write8(sp_vibrato_control_ratio, mem, mem_size, mem_alloced);      /* vibrato rate */
+        mem_write8(sp_vibrato_depth, mem, mem_size, mem_alloced);               /* vibrato depth */
 
 #ifdef LFO_DEBUG
         convert_lfo(name, program, banknum, wanted_bank);
@@ -1594,11 +1633,11 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         flags = getmodes(sf_mode, program, wanted_bank);
 
-        mem_write8(flags);                  /* write sample mode */
+        mem_write8(flags, mem, mem_size, mem_alloced);                  /* write sample mode */
 
         /* The value for sp_freq_center was set in calc_root_pitch(). */
-        mem_write16(sp_freq_center);
-        mem_write16(freq_scale);           /* scale factor */
+        mem_write16(sp_freq_center, mem, mem_size, mem_alloced);
+        mem_write16(freq_scale, mem, mem_size, mem_alloced);           /* scale factor */
 
         if (options.opt_adjust_volume) {
             if (options.opt_veryverbose) printf("vol comp %d", sp_volume);
@@ -1607,55 +1646,55 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         }
         else sample_volume = sp_volume;
 
-        mem_write16(sample_volume); /* I'm not sure this is here. (gl) */
+        mem_write16(sample_volume, mem, mem_size, mem_alloced); /* I'm not sure this is here. (gl) */
 
-/* Begin SF2 extensions */
-        mem_write8(delay);
-        mem_write8(sf_exclusiveClass);
-        mem_write8(sp_vibrato_delay);
+        /* Begin SF2 extensions */
+        mem_write8(delay, mem, mem_size, mem_alloced);
+        mem_write8(sf_exclusiveClass, mem, mem_size, mem_alloced);
+        mem_write8(sp_vibrato_delay, mem, mem_size, mem_alloced);
 
-        mem_write8(msec2gus(mod_attack, sp_volume));                   /* envelope rates */
-        mem_write8(msec2gus(mod_hold, sp_volume - 1));
-        mem_write8(msec2gus(mod_decay, sp_volume - 1 - mod_sustain));
-        mem_write8(msec2gus(mod_release, 255));
-        mem_write8(0x3F);
-        mem_write8(0x3F);
+        mem_write8(msec2gus(mod_attack, sp_volume), mem, mem_size, mem_alloced);                   /* envelope rates */
+        mem_write8(msec2gus(mod_hold, sp_volume - 1), mem, mem_size, mem_alloced);
+        mem_write8(msec2gus(mod_decay, sp_volume - 1 - mod_sustain), mem, mem_size, mem_alloced);
+        mem_write8(msec2gus(mod_release, 255), mem, mem_size, mem_alloced);
+        mem_write8(0x3F, mem, mem_size, mem_alloced);
+        mem_write8(0x3F, mem, mem_size, mem_alloced);
 
-        mem_write8(sp_volume);                    /* envelope offsets */
-        mem_write8(sp_volume - 1);
-        mem_write8(mod_sustain);
-        mem_write8(0);
-        mem_write8(0);
-        mem_write8(0);
+        mem_write8(sp_volume, mem, mem_size, mem_alloced);                    /* envelope offsets */
+        mem_write8(sp_volume - 1, mem, mem_size, mem_alloced);
+        mem_write8(mod_sustain, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
+        mem_write8(0, mem, mem_size, mem_alloced);
 
-        mem_write8(sp_delayModLFO);
+        mem_write8(sp_delayModLFO, mem, mem_size, mem_alloced);
 
-        mem_write8(sf_chorusEffectsSend);
-        mem_write8(sf_reverbEffectsSend);
+        mem_write8(sf_chorusEffectsSend, mem, mem_size, mem_alloced);
+        mem_write8(sf_reverbEffectsSend, mem, mem_size, mem_alloced);
 
         calc_resonance();
-        mem_write16(sp_resonance);
+        mem_write16(sp_resonance, mem, mem_size, mem_alloced);
 
         calc_cutoff();
-        mem_write16(sp_cutoff_freq);
+        mem_write16(sp_cutoff_freq, mem, mem_size, mem_alloced);
 
-        mem_write8(sp_modEnvToPitch);
-        mem_write8(sp_modEnvToFilterFc);
-        mem_write8(sp_modLfoToFilterFc);
+        mem_write8(sp_modEnvToPitch, mem, mem_size, mem_alloced);
+        mem_write8(sp_modEnvToFilterFc, mem, mem_size, mem_alloced);
+        mem_write8(sp_modLfoToFilterFc, mem, mem_size, mem_alloced);
 
-        mem_write8(sf_keynumToModEnvHold);
-        mem_write8(sf_keynumToModEnvDecay);
-        mem_write8(sf_keynumToVolEnvHold);
-        mem_write8(sf_keynumToVolEnvDecay);
+        mem_write8(sf_keynumToModEnvHold, mem, mem_size, mem_alloced);
+        mem_write8(sf_keynumToModEnvDecay, mem, mem_size, mem_alloced);
+        mem_write8(sf_keynumToVolEnvHold, mem, mem_size, mem_alloced);
+        mem_write8(sf_keynumToVolEnvDecay, mem, mem_size, mem_alloced);
 
-        mem_write8(sf_pan);                 /* balance */
+        mem_write8(sf_pan, mem, mem_size, mem_alloced);                 /* balance */
 
-        mem_write16(sp_lfo_phase_increment);    /* lfo */
-        mem_write8(sp_lfo_depth);
+        mem_write16(sp_lfo_phase_increment, mem, mem_size, mem_alloced);    /* lfo */
+        mem_write8(sp_lfo_depth, mem, mem_size, mem_alloced);
 
         if (sf_instrument_unused5 == -1)
-            mem_write8(255);
-        else mem_write8(sf_instrument_unused5);
+            mem_write8(255, mem, mem_size, mem_alloced);
+        else mem_write8(sf_instrument_unused5, mem, mem_size, mem_alloced);
 
 #if 0
         /* 36 (34?) bytes were reserved; now 1 left */
@@ -1664,11 +1703,11 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 #endif
         if (options.opt_8bit) {                     /* sample waveform */
             for (i = 0; i < length; i++)
-                mem_write8((int) ((sf_sample_data[sample->dwStart + i] >> 8) * vol) ^ 0x80);
+                mem_write8((int) ((sf_sample_data[sample->dwStart + i] >> 8) * vol) ^ 0x80, mem, mem_size, mem_alloced);
         }
         else {
             for (i = 0; i < length; i++)
-                mem_write16(sf_sample_data[sample->dwStart + i]);
+                mem_write16(sf_sample_data[sample->dwStart + i], mem, mem_size, mem_alloced);
         }
     }
     return TRUE;
@@ -1679,8 +1718,8 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                    int sf_num_presets, sfPresetHeader *sf_presets,
                    sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
                    sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
-                   sfGenList *sf_instrument_generators, sfSample *sf_samples, int *mem_size,
-                   short *sf_sample_data) {
+                   sfGenList *sf_instrument_generators, sfSample *sf_samples, unsigned char *mem, int *mem_alloced,
+                   int *mem_size, short *sf_sample_data) {
     sfPresetHeader *pheader;
     sfPresetBag *pindex;
     sfGenList *pgen;
@@ -2056,10 +2095,10 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                 }
                 if (drum)
                     return grab_soundfont_sample(options, name, wanted_keymin, wanted_patch, wanted_bank,
-                                                 waiting_list_count, waiting_list, mem_size, sf_sample_data);
+                                                 waiting_list_count, waiting_list, mem, mem_alloced, mem_size, sf_sample_data);
                 else
                     return grab_soundfont_sample(options, name, wanted_patch, wanted_bank, wanted_bank,
-                                                 waiting_list_count, waiting_list, mem_size, sf_sample_data);
+                                                 waiting_list_count, waiting_list, mem, mem_alloced, mem_size, sf_sample_data);
             }
             else {
                 fprintf(stderr, "\nStrange... no valid layers found in instrument %s bank %d prog %d\n",
@@ -2122,7 +2161,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                         if (!grab_soundfont(options, j, FALSE, voice_name[i][j], wanted_velmin, wanted_velmax,
                                             sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                             sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                            sf_samples, mem_size, sf_sample_data)) {
+                                            sf_samples, mem, mem_alloced, mem_size, sf_sample_data)) {
                             fprintf(stderr, "Could not create patch %s for bank %s\n",
                                     voice_name[i][j], tonebank_name[i]);
                             fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2140,7 +2179,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             if (!grab_soundfont(options, j, FALSE, voice_name[i][j], wanted_velmin, wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                                sf_samples, mem_size, sf_sample_data)) {
+                                                sf_samples, mem, mem_alloced, mem_size, sf_sample_data)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         voice_name[i][j], tonebank_name[i]);
                                 fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2197,7 +2236,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                         if (!grab_soundfont(options, j, TRUE, drum_name[i][j], wanted_velmin, wanted_velmax,
                                             sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                             sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                            sf_samples, mem_size, sf_sample_data)) {
+                                            sf_samples, mem, mem_alloced, mem_size, sf_sample_data)) {
                             fprintf(stderr, "Could not create left/mono patch %s for bank %s\n",
                                     drum_name[i][j], drumset_name[i]);
                             fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2215,8 +2254,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             if (!grab_soundfont(options, j, TRUE, drum_name[i][j], wanted_velmin, wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                                sf_samples,
-                                                mem_size, sf_sample_data)) {
+                                                sf_samples, mem, mem_alloced, mem_size, sf_sample_data)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         drum_name[i][j], drumset_name[i]);
                                 fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
