@@ -37,48 +37,7 @@
 
 
 
-static int adjust_volume(int start, int length)
-{
-#if 0
-      if (opt_adjust_volume) sp_volume = adjust_volume(sample->dwStart, length);
-	 for (i=0; i<length; i++)
-	    mem_write16(sf_sample_data[sample->dwStart+i]);
-#endif
-	    /* Try to determine a volume scaling factor for the sample.
-	       This is a very crude adjustment, but things sound more
-	       balanced with it. Still, this should be a runtime option. */
-	 
-	unsigned int  countsamp, numsamps = length;
-	unsigned int  higher = 0, highcount = 0;
-	short   maxamp = 0, a;
-	short  *tmpdta = (short *) sf_sample_data + start;
-	double new_vol;
-	countsamp = numsamps;
-	while (countsamp--) {
-		a = *tmpdta++;
-		if (a < 0)
-		a = -a;
-		if (a > maxamp)
-		maxamp = a;
-	}
-	tmpdta = (short *) sf_sample_data + start;
-	countsamp = numsamps;
-	while (countsamp--) {
-		a = *tmpdta++;
-		if (a < 0)
-		a = -a;
-		if (a > 3 * maxamp / 4) {
-		    higher += a;
-		    highcount++;
-		}
-	}
-	if (highcount)
-		higher /= highcount;
-	else
-		higher = 10000;
-	new_vol = (32768.0 * 0.875) / (double) higher;
-	return (int)(new_vol * 255.0);
-}
+
 
 
 

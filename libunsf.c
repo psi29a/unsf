@@ -1830,6 +1830,49 @@ static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlag
     return modes;
 }
 
+static int adjust_volume(short *sf_sample_data, int start, int length)
+{
+#if 0
+    if (opt_adjust_volume) sp_volume = adjust_volume(sample->dwStart, length);
+	 for (i=0; i<length; i++)
+	    mem_write16(sf_sample_data[sample->dwStart+i]);
+#endif
+    /* Try to determine a volume scaling factor for the sample.
+       This is a very crude adjustment, but things sound more
+       balanced with it. Still, this should be a runtime option. */
+
+    unsigned int  countsamp, numsamps = length;
+    unsigned int  higher = 0, highcount = 0;
+    short   maxamp = 0, a;
+    short  *tmpdta = (short *) sf_sample_data + start;
+    double new_vol;
+    countsamp = numsamps;
+    while (countsamp--) {
+        a = *tmpdta++;
+        if (a < 0)
+            a = -a;
+        if (a > maxamp)
+            maxamp = a;
+    }
+    tmpdta = (short *) sf_sample_data + start;
+    countsamp = numsamps;
+    while (countsamp--) {
+        a = *tmpdta++;
+        if (a < 0)
+            a = -a;
+        if (a > 3 * maxamp / 4) {
+            higher += a;
+            highcount++;
+        }
+    }
+    if (highcount)
+        higher /= highcount;
+    else
+        higher = 10000;
+    new_vol = (32768.0 * 0.875) / (double) higher;
+    return (int)(new_vol * 255.0);
+}
+
 /* copies data from the waiting list into a GUS .pat struct */
 static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
                                  int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, unsigned char *mem,
@@ -2273,7 +2316,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         if (options.opt_adjust_volume) {
             if (options.opt_veryverbose) printf("vol comp %d", sp_meta.volume);
-            sample_volume = adjust_volume(&sf_meta, sample->dwStart, length);
+            sample_volume = adjust_volume(sf_sample_data, sample->dwStart, length);
             if (options.opt_veryverbose) printf(" -> %d\n", sample_volume);
         }
         else sample_volume = sp_meta.volume;
