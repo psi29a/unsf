@@ -57,10 +57,14 @@ static int drum_samples_mono[128][128];
 static int drum_samples_left[128][128];
 static int drum_samples_right[128][128];
 static VelocityRangeList *drum_velocity[128][128];
+
+/* TODO: remove these */
 static char basename[80];
+static FILE *cfg_fd;
+
+
 static char cpyrt[256];
 
-static FILE *cfg_fd;
 
 /* SoundFont chunk format and ID values */
 typedef struct RIFF_CHUNK {
@@ -1065,7 +1069,7 @@ static void sort_velocity_layers(void) {
 }
 
 static void shorten_drum_names() {
-    int i, j, velcount, right_patches;
+    int i, j, right_patches;
     VelocityRangeList *vlist;
 
     for (i = 0; i < 128; i++) {
@@ -1074,7 +1078,6 @@ static void shorten_drum_names() {
                 if (drum_name[i][j]) {
                     vlist = drum_velocity[i][j];
                     if (vlist) {
-                        velcount = vlist->range_count;  /* TODO: set but not used */
                         right_patches = vlist->right_patches[0];
                     }
                     else {
@@ -1118,7 +1121,7 @@ static void mem_write8(int val, unsigned char *mem, int *mem_size, int *mem_allo
     }
 
     mem[*mem_size] = val;
-    *mem_size++;
+    ++*mem_size;
 }
 
 /* writes a word to the memory buffer (little endian) */
@@ -1558,23 +1561,12 @@ static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta) {
         return;
     }
 
-#if 0
-    /* cents to linear; 400cents = 256 */
-    shift = shift * 256 / 400;
-    if (shift > 255) shift = 255;
-    else if (shift < -255) shift = -255;
-    sp_meta->vibrato_depth = shift;
-    /* This is Timidity++ code.  I don't think it makes sense.
-     * vibrato depth seems to be an unsigned 8 bit quantity.
-     */
-#else
     /* cents to linear; 400cents = 256 */
     shift = (int) (pow(2.0, ((double) shift / 1200.0)) * VIBRATO_RATE_TUNING);
     if (shift < 0) shift = -shift;
     if (shift < 2) shift = 2;
     if (shift > 20) shift = 20; /* arbitrary */
     sp_meta->vibrato_depth = shift;
-#endif
 
     /* frequency in mHz */
     if (!freq) freq = 8;
@@ -1820,11 +1812,6 @@ static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlag
 }
 
 static int adjust_volume(short *sf_sample_data, int start, int length) {
-#if 0
-    if (opt_adjust_volume) sp_volume = adjust_volume(sample->dwStart, length);
-     for (i=0; i<length; i++)
-        mem_write16(sf_sample_data[sample->dwStart+i]);
-#endif
     /* Try to determine a volume scaling factor for the sample.
        This is a very crude adjustment, but things sound more
        balanced with it. Still, this should be a runtime option. */
@@ -1881,7 +1868,8 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
     int flags;
     int i, n;
     int delay, attack, hold, decay, release, sustain;
-    int mod_delay, mod_attack, mod_hold, mod_decay, mod_release, mod_sustain;
+    int mod_attack, mod_hold, mod_decay, mod_release, mod_sustain;
+    /* int mod_delay; */
     int freq_scale;
     unsigned int sample_volume;
 
@@ -2139,6 +2127,8 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         sf_meta.modLfoToFilterFc = 0;
 
         sp_meta.freq_center = 60;
+        sp_meta.delayModLFO = 0;
+        sp_meta.vibrato_delay = 0;
 
         /* process the lists of generator data */
         for (i = 0; i < global_izone_count; i++)
@@ -2194,7 +2184,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         release = timecent2msec(sf_meta.release_vol_env);
 
         mod_sustain = calc_mod_sustain(&sf_meta);
-        mod_delay = timecent2msec(sf_meta.delayModEnv);
+        /* mod_delay = timecent2msec(sf_meta.delayModEnv); */
         mod_attack = timecent2msec(sf_meta.attackModEnv);
         mod_hold = timecent2msec(sf_meta.holdModEnv);
         mod_decay = timecent2msec(sf_meta.decayModEnv);
@@ -2360,11 +2350,6 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
             mem_write8(255, mem, mem_size, mem_alloced);
         else mem_write8(sf_meta.instrument_unused5, mem, mem_size, mem_alloced);
 
-#if 0
-        /* 36 (34?) bytes were reserved; now 1 left */
-      for (i=35; i<36; i++)                /* reserved */
-        mem_write8(0, mem, mem_size, mem_alloced);
-#endif
         if (options.opt_8bit) {                     /* sample waveform */
             for (i = 0; i < length; i++)
                 mem_write8((int) ((sf_sample_data[sample->dwStart + i] >> 8) * vol) ^ 0x80, mem, mem_size, mem_alloced);
@@ -2519,13 +2504,6 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                 if ((pgen_count > 0) &&
                     (pgen[pgen_count - 1].sfGenOper == SFGEN_instrument)) {
 
-#if 0
-                    if (pgen[0].sfGenOper == SFGEN_keyRange)
-          if ((pgen[0].genAmount.ranges.byHi < keymin) ||
-              (pgen[0].genAmount.ranges.byLo > keymax))
-             continue;
-#endif
-
                     iheader = &sf_instruments[pgen[pgen_count - 1].genAmount.wAmount];
 
                     iindex = &sf_instrument_indexes[iheader->wInstBagNdx];
@@ -2596,18 +2574,7 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                                 keymax = preset_keymax;
                             }
                         }
-#if 0
-                        if (!drum && !wanted_bank && wanted_patch == 16) {
-    fprintf(stderr,"velmin=%d velmax=%d wanted_velmin=%d wanted_velmax=%d\n",
-            velmin, velmax, wanted_velmin, wanted_velmax);
-    fprintf(stderr,"instrument_velmin=%d instrument_velmax=%d preset_velmin=%d preset_velmax=%d\n",
-            instrument_velmin, instrument_velmax, preset_velmin, preset_velmax);
-    fprintf(stderr,"keymin=%d keymax=%d wanted_keymin=%d wanted_keymax=%d\n",
-            keymin, keymax, wanted_keymin, wanted_keymax);
-    fprintf(stderr,"instrument_keymin=%d instrument_keymax=%d preset_keymin=%d preset_keymax=%d\n",
-            instrument_keymin, instrument_keymax, preset_keymin, preset_keymax);
-}
-#endif
+
                         if (velmin != wanted_velmin || velmax != wanted_velmax) continue;
                         if (drum && (wanted_keymin < keymin || wanted_keymin > keymax)) continue;
                         if (!drum && (keymin < wanted_keymin || keymax > wanted_keymax)) continue;
@@ -2726,19 +2693,6 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                 }
                 if (options.opt_right_channel) pcount = vlist->right_patches[k];
                 else pcount = vlist->left_patches[k] + vlist->mono_patches[k];
-#if 0
-                if (options.opt_header && pcount > waiting_list_count && options.opt_left_channel) {
-            while (pcount > waiting_list_count && vlist->right_patches[k] > 1 && vlist->left_patches[k] > 1) {
-                vlist->right_patches[k]--;
-                vlist->left_patches[k]--;
-                pcount--;
-            }
-            while (pcount > waiting_list_count && vlist->mono_patches[k] > 1) {
-                vlist->mono_patches[k]--;
-                pcount--;
-            }
-        }
-#endif
                 if (pcount != waiting_list_count) {
                     fprintf(stderr, "\nFor %sinstrument %s %s found %d samples when there should be %d samples.\n",
                             options.opt_header ? "header of " : "", name,
@@ -3026,6 +2980,9 @@ void add_soundfont_patches(UnSF_Options options) {
     FILE *f;
     size_t result;
     int i;
+
+    memset(melody_velocity_override, -1, 128 * 128);
+    memset(drum_velocity_override, -1, 128 * 128);
 
     /* SoundFont sample data */
     short *sf_sample_data = NULL;

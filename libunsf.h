@@ -118,7 +118,7 @@ typedef struct SP_Meta
     short lfo_phase_increment;    /* lfo_phase_increment is actually frequency */
 } SP_Meta;
 
-UNSF_SYMBOL void convert_to_gus(UnSF_Options options);
+UNSF_SYMBOL void convert_sf_to_gus(UnSF_Options options);
 
 
 #endif //UNSF_LIBUNSF_H
