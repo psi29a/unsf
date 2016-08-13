@@ -7,5 +7,5 @@ install: unsf
 uninstall:
 	rm -f $(DESTDIR)$/usr/bin/unsf
 clean:
-	rm -f unsf
+	rm -f unsf libunsf.o libunsf.a
 all:	unsf

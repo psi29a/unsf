@@ -38,11 +38,6 @@ typedef struct VelocityRangeList {
     unsigned char other_patches[128];
 } VelocityRangeList;
 
-/* manually set the velocity of either a instrument or drum since most
-   applications do not know about the extended patch format. */
-static signed char melody_velocity_override[128][128];
-static signed char drum_velocity_override[128][128];
-
 static int tonebank[128];
 static char *tonebank_name[128];
 static char *voice_name[128][128];
@@ -57,11 +52,6 @@ static int drum_samples_mono[128][128];
 static int drum_samples_left[128][128];
 static int drum_samples_right[128][128];
 static VelocityRangeList *drum_velocity[128][128];
-
-/* TODO: remove these */
-static char basename[80];
-static FILE *cfg_fd;
-
 
 static char cpyrt[256];
 
@@ -530,7 +520,7 @@ static void calc_end(RIFF_CHUNK *chunk, FILE *f) {
 
 
 /* reads and displays a SoundFont text/copyright message */
-static void print_sf_string(FILE *f, char *title, int opt_no_write) {
+static void print_sf_string(UnSF_Options options, FILE *f, char *title, int opt_no_write) {
     char buf[256];
     char ch;
     int i = 0;
@@ -548,7 +538,7 @@ static void print_sf_string(FILE *f, char *title, int opt_no_write) {
         strcat(cpyrt, buf);
     }
 
-    if (!opt_no_write) fprintf(cfg_fd, "# %-12s%s\n", title, buf);
+    if (!options.opt_no_write) fprintf(options.cfg_fd, "# %-12s%s\n", title, buf);
 }
 
 static char *getname(char *p) {
@@ -733,7 +723,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
         if (drum) {
             if (!drumset_name[options.opt_drum_bank]) {
                 drumset_short_name[options.opt_drum_bank] = unsf_strdup(s);
-                sprintf(tmpname, "%s-%s", basename, s);
+                sprintf(tmpname, "%s-%s", options.basename, s);
                 drumset_name[options.opt_drum_bank] = unsf_strdup(tmpname);
                 if (options.opt_verbose) printf("drumset #%d %s\n", options.opt_drum_bank, s);
             }
@@ -949,10 +939,10 @@ static void make_directories(UnSF_Options options) {
     for (i = 0; i < 128; i++) {
         if (tonebank[i]) {
             if (tonebank_count > 1) {
-                sprintf(tmpname, "%s-B%d", basename, i);
+                sprintf(tmpname, "%s-B%d", options.basename, i);
                 tonebank_name[i] = unsf_strdup(tmpname);
             }
-            else tonebank_name[i] = unsf_strdup(basename);
+            else tonebank_name[i] = unsf_strdup(options.basename);
             if (options.opt_no_write) continue;
             if ((rcode = access(tonebank_name[i], R_OK | W_OK | X_OK)))
                 rcode = mkdir(tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -976,7 +966,7 @@ static void make_directories(UnSF_Options options) {
 }
 
 
-static void sort_velocity_layers(void) {
+static void sort_velocity_layers(UnSF_Options options) {
     int i, j, k, velmin, velmax, velcount, left_patches, right_patches, mono_patches;
     int width, widest;
     VelocityRangeList *vlist;
@@ -997,8 +987,8 @@ static void sort_velocity_layers(void) {
                                 width = vlist->velmax[k] - vlist->velmin[k];
                             }
                         }
-                        if (melody_velocity_override[i][j] != -1)
-                            widest = melody_velocity_override[i][j];
+                        if (options.melody_velocity_override[i][j] != -1)
+                            widest = options.melody_velocity_override[i][j];
                         if (widest) {
                             velmin = vlist->velmin[0];
                             velmax = vlist->velmax[0];
@@ -1039,8 +1029,8 @@ static void sort_velocity_layers(void) {
                                 width = vlist->velmax[k] - vlist->velmin[k];
                             }
                         }
-                        if (drum_velocity_override[i][j] != -1)
-                            widest = drum_velocity_override[i][j];
+                        if (options.drum_velocity_override[i][j] != -1)
+                            widest = options.drum_velocity_override[i][j];
                         if (widest) {
                             velmin = vlist->velmin[0];
                             velmax = vlist->velmax[0];
@@ -2914,7 +2904,7 @@ static void gen_config_file(UnSF_Options options) {
 
     for (i = 0; i < 128; i++) {
         if (tonebank[i]) {
-            fprintf(cfg_fd, "\nbank %d #N %s\n", i, tonebank_name[i]);
+            fprintf(options.cfg_fd, "\nbank %d #N %s\n", i, tonebank_name[i]);
             for (j = 0; j < 128; j++) {
                 if (voice_name[i][j]) {
                     vlist = voice_velocity[i][j];
@@ -2923,25 +2913,25 @@ static void gen_config_file(UnSF_Options options) {
                         right_patches = vlist->right_patches[0];
                     }
                     else {
-                        fprintf(cfg_fd, "\t# %d %s could not be extracted\n", j,
+                        fprintf(options.cfg_fd, "\t# %d %s could not be extracted\n", j,
                                 voice_name[i][j]);
                         continue;
                     }
-                    fprintf(cfg_fd, "\t%d %s/%s", j,
+                    fprintf(options.cfg_fd, "\t%d %s/%s", j,
                             tonebank_name[i], voice_name[i][j]);
-                    if (velcount > 1) fprintf(cfg_fd, "\t# %d velocity ranges", velcount);
+                    if (velcount > 1) fprintf(options.cfg_fd, "\t# %d velocity ranges", velcount);
                     if (right_patches) {
-                        if (velcount == 1) fprintf(cfg_fd, "\t# stereo");
-                        else fprintf(cfg_fd, ", stereo");
+                        if (velcount == 1) fprintf(options.cfg_fd, "\t# stereo");
+                        else fprintf(options.cfg_fd, ", stereo");
                     }
-                    fprintf(cfg_fd, "\n");
+                    fprintf(options.cfg_fd, "\n");
                 }
             }
         }
     }
     for (i = 0; i < 128; i++) {
         if (drumset_name[i]) {
-            fprintf(cfg_fd, "\ndrumset %d #N %s\n", i, drumset_short_name[i]);
+            fprintf(options.cfg_fd, "\ndrumset %d #N %s\n", i, drumset_short_name[i]);
             for (j = 0; j < 128; j++) {
                 if (drum_name[i][j]) {
                     vlist = drum_velocity[i][j];
@@ -2950,18 +2940,18 @@ static void gen_config_file(UnSF_Options options) {
                         right_patches = vlist->right_patches[0];
                     }
                     else {
-                        fprintf(cfg_fd, "\t# %d %s could not be extracted\n", j,
+                        fprintf(options.cfg_fd, "\t# %d %s could not be extracted\n", j,
                                 drum_name[i][j]);
                         continue;
                     }
-                    fprintf(cfg_fd, "\t%d %s/%s", j,
+                    fprintf(options.cfg_fd, "\t%d %s/%s", j,
                             drumset_name[i], drum_name[i][j]);
-                    if (velcount > 1) fprintf(cfg_fd, "\t# %d velocity ranges", velcount);
+                    if (velcount > 1) fprintf(options.cfg_fd, "\t# %d velocity ranges", velcount);
                     if (right_patches) {
-                        if (velcount == 1) fprintf(cfg_fd, "\t# stereo");
-                        else fprintf(cfg_fd, ", stereo");
+                        if (velcount == 1) fprintf(options.cfg_fd, "\t# stereo");
+                        else fprintf(options.cfg_fd, ", stereo");
                     }
-                    fprintf(cfg_fd, "\n");
+                    fprintf(options.cfg_fd, "\n");
                 }
             }
         }
@@ -2980,9 +2970,6 @@ void add_soundfont_patches(UnSF_Options options) {
     FILE *f;
     size_t result;
     int i;
-
-    memset(melody_velocity_override, -1, 128 * 128);
-    memset(drum_velocity_override, -1, 128 * 128);
 
     /* SoundFont sample data */
     short *sf_sample_data = NULL;
@@ -3072,31 +3059,31 @@ void add_soundfont_patches(UnSF_Options options) {
                                     break;
 
                                 case CID_INAM:
-                                    print_sf_string(f, "Bank name:", options.opt_no_write);
+                                    print_sf_string(options, f, "Bank name:", options.opt_no_write);
                                     break;
 
                                 case CID_irom:
-                                    print_sf_string(f, "ROM name:", options.opt_no_write);
+                                    print_sf_string(options, f, "ROM name:", options.opt_no_write);
                                     break;
 
                                 case CID_ICRD:
-                                    print_sf_string(f, "Date:", options.opt_no_write);
+                                    print_sf_string(options, f, "Date:", options.opt_no_write);
                                     break;
 
                                 case CID_IENG:
-                                    print_sf_string(f, "Made by:", options.opt_no_write);
+                                    print_sf_string(options, f, "Made by:", options.opt_no_write);
                                     break;
 
                                 case CID_IPRD:
-                                    print_sf_string(f, "Target:", options.opt_no_write);
+                                    print_sf_string(options, f, "Target:", options.opt_no_write);
                                     break;
 
                                 case CID_ICOP:
-                                    print_sf_string(f, "Copyright:", options.opt_no_write);
+                                    print_sf_string(options, f, "Copyright:", options.opt_no_write);
                                     break;
 
                                 case CID_ISFT:
-                                    print_sf_string(f, "Tools:", options.opt_no_write);
+                                    print_sf_string(options, f, "Tools:", options.opt_no_write);
                                     break;
                             }
 
@@ -3299,7 +3286,7 @@ void add_soundfont_patches(UnSF_Options options) {
         grab_soundfont_banks(options, sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                              sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples);
         make_directories(options);
-        sort_velocity_layers();
+        sort_velocity_layers(options);
         shorten_drum_names();
         make_patch_files(options, sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                          sf_instruments, sf_instrument_indexes, sf_instrument_generators, sf_samples, sf_sample_data);

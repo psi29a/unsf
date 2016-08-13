@@ -48,6 +48,13 @@ typedef struct UnSF_Options
     int opt_no_write;
     int opt_adjust_sample_flags;
     int opt_adjust_volume;
+    char basename[80];
+    /* manually set the velocity of either a instrument or drum since most
+    applications do not know about the extended patch format. */
+    signed char melody_velocity_override[128][128];
+    signed char drum_velocity_override[128][128];
+
+    FILE *cfg_fd;
 } UnSF_Options;
 
 /* SoundFont parameters for the current sample */
