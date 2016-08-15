@@ -1087,41 +1087,42 @@ static void shorten_drum_names(SampleBank *sample_bank) {
 }
 
 /* writes a block of data the memory buffer */
-static void mem_write_block(void *data, int size, unsigned char *mem, int *mem_size, int *mem_alloced) {
+static void mem_write_block(void *data, int size, unsigned char **mem, int *mem_size, int *mem_alloced) {
     if (*mem_size + size > *mem_alloced) {
         *mem_alloced = (*mem_alloced + size + 4095) & ~4095;
-        if (!(mem = realloc(mem, *mem_alloced))) {
+        if (!(*mem = malloc(*mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
             exit(1);
         }
     }
 
-    memcpy(mem + *mem_size, data, size);
+    memcpy(*mem + *mem_size, data, size);
     *mem_size += size;
 }
 
 /* writes a byte to the memory buffer */
-static void mem_write8(int val, unsigned char *mem, int *mem_size, int *mem_alloced) {
+static void mem_write8(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
+    //printf("DEBUG (2): %u, %d, %d\n", (unsigned int) *mem, *mem_size, *mem_alloced);
     if (*mem_size >= *mem_alloced) {
         *mem_alloced += 4096;
-        if (!(mem = realloc(mem, *mem_alloced))) {
+        if (!(*mem = realloc(*mem, *mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
             exit(1);
         }
     }
 
-    mem[*mem_size] = val;
+    mem[0][*mem_size] = val;
     ++*mem_size;
 }
 
 /* writes a word to the memory buffer (little endian) */
-static void mem_write16(int val, unsigned char *mem, int *mem_size, int *mem_alloced) {
+static void mem_write16(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
     mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
 }
 
 /* writes a long to the memory buffer (little endian) */
-static void mem_write32(int val, unsigned char *mem, int *mem_size, int *mem_alloced) {
+static void mem_write32(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
     mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 16) & 0xFF, mem, mem_size, mem_alloced);
@@ -1840,7 +1841,7 @@ static int adjust_volume(short *sf_sample_data, int start, int length) {
 
 /* copies data from the waiting list into a GUS .pat struct */
 static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
-                                 int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, unsigned char *mem,
+                                 int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, unsigned char **mem,
                                  int *mem_alloced, int *mem_size, short *sf_sample_data, SampleBank *sample_bank) {
     sfSample *sample;
     sfGenList *igen;
@@ -2357,7 +2358,7 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                    int sf_num_presets, sfPresetHeader *sf_presets,
                    sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
                    sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
-                   sfGenList *sf_instrument_generators, sfSample *sf_samples, unsigned char *mem, int *mem_alloced,
+                   sfGenList *sf_instrument_generators, sfSample *sf_samples, unsigned char **mem, int *mem_alloced,
                    int *mem_size, short *sf_sample_data, SampleBank *sample_bank) {
     sfPresetHeader *pheader;
     sfPresetBag *pindex;
@@ -2773,7 +2774,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                                             wanted_velmax, sf_num_presets, sf_presets, sf_preset_indexes,
                                             sf_preset_generators,
                                             sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                            sf_samples, mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
+                                            sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
                             fprintf(stderr, "Could not create patch %s for bank %s\n",
                                     sample_bank->voice_name[i][j], sample_bank->tonebank_name[i]);
                             fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2791,7 +2792,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             if (!grab_soundfont(options, j, FALSE, sample_bank->voice_name[i][j], wanted_velmin, wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                                sf_samples, mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
+                                                sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         sample_bank->voice_name[i][j], sample_bank->tonebank_name[i]);
                                 fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2848,7 +2849,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                         if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin, wanted_velmax,
                                             sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                             sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                            sf_samples, mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
+                                            sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
                             fprintf(stderr, "Could not create left/mono patch %s for bank %s\n",
                                     sample_bank->drum_name[i][j], sample_bank->drumset_name[i]);
                             fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2866,7 +2867,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin, wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                                sf_samples, mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
+                                                sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         sample_bank->drum_name[i][j], sample_bank->drumset_name[i]);
                                 fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2961,17 +2962,13 @@ static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
 }
 
 
-void convert_sf_to_gus(UnSF_Options options) {
-
-}
-
-
 /* creates all the required patch files */
 void add_soundfont_patches(UnSF_Options options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
-    int i, err;
+    int i;
+    int err = 0;
 
     /* SoundFont sample data */
     short *sf_sample_data = NULL;
@@ -3109,8 +3106,8 @@ void add_soundfont_patches(UnSF_Options options) {
 
                                     for (i = 0; i < sf_num_presets; i++) {
                                         result = fread(sf_presets[i].achPresetName, 20, 1, f);
-                                        if (result != 20) {
-                                            fputs("Reading error", stderr);
+                                        if (result != 1) {
+                                            fputs("Reading error (CID_phdr)", stderr);
                                             exit(3);
                                         }
                                         sf_presets[i].wPreset = get16(f);
@@ -3163,8 +3160,8 @@ void add_soundfont_patches(UnSF_Options options) {
 
                                     for (i = 0; i < sf_num_instruments; i++) {
                                         result = fread(sf_instruments[i].achInstName, 20, 1, f);
-                                        if (result != 20) {
-                                            fputs("Reading error", stderr);
+                                        if (result != 1) {
+                                            fputs("Reading error (CID_inst)", stderr);
                                             exit(3);
                                         }
                                         sf_instruments[i].wInstBagNdx = get16(f);
@@ -3212,8 +3209,8 @@ void add_soundfont_patches(UnSF_Options options) {
 
                                     for (i = 0; i < sf_num_samples; i++) {
                                         result = fread(sf_samples[i].achSampleName, 20, 1, f);
-                                        if (result != 20) {
-                                            fputs("Reading error", stderr);
+                                        if (result != 1) {
+                                            fputs("Reading error (CID_shdr)", stderr);
                                             exit(3);
                                         }
                                         sf_samples[i].dwStart = get32(f);
@@ -3339,3 +3336,6 @@ void add_soundfont_patches(UnSF_Options options) {
     }
 }
 
+void convert_sf_to_gus(UnSF_Options options) {
+    add_soundfont_patches(options);
+}
