@@ -593,8 +593,7 @@ static char *getname(char *p) {
 
 static void
 record_velocity_range(UnSF_Options options, SampleBank *samplebank, int drum, int banknum, int program, int velmin,
-                      int velmax,
-                      int type) {
+                      int velmax, int type) {
     int i, count;
     VelocityRangeList *vlist;
     char *name;
@@ -1102,7 +1101,6 @@ static void mem_write_block(void *data, int size, unsigned char **mem, int *mem_
 
 /* writes a byte to the memory buffer */
 static void mem_write8(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
-    //printf("DEBUG (2): %u, %d, %d\n", (unsigned int) *mem, *mem_size, *mem_alloced);
     if (*mem_size >= *mem_alloced) {
         *mem_alloced += 4096;
         if (!(*mem = realloc(*mem, *mem_alloced))) {
@@ -2895,6 +2893,9 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                 }
     }
     printf("\n");
+
+    /* clean up after outselves */
+    free(mem);
 }
 
 static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
@@ -2963,7 +2964,7 @@ static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
 
 
 /* creates all the required patch files */
-void add_soundfont_patches(UnSF_Options options) {
+void convert_sf_to_gus(UnSF_Options options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
@@ -3334,8 +3335,4 @@ void add_soundfont_patches(UnSF_Options options) {
         free(sf_samples);
         sf_samples = NULL;
     }
-}
-
-void convert_sf_to_gus(UnSF_Options options) {
-    add_soundfont_patches(options);
 }
