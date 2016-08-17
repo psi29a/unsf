@@ -617,7 +617,7 @@ record_velocity_range(UnSF_Options *options, SampleBank *sample_bank, int drum, 
     for (i = 0; i < count; i++) {
         if (vlist->velmin[i] == velmin && vlist->velmax[i] == velmax) break;
     }
-    if (i >= 128) return;
+    if (i >= UNSF_RANGE) return;
     vlist->velmin[i] = velmin;
     vlist->velmax[i] = velmax;
     if (i == count) {
@@ -668,11 +668,11 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
     char *s;
     char tmpname[80];
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         sample_bank->tonebank[i] = FALSE;
         sample_bank->drumset_name[i] = NULL;
         sample_bank->drumset_short_name[i] = NULL;
-        for (j = 0; j < 128; j++) {
+        for (j = 0; j < UNSF_RANGE; j++) {
             sample_bank->voice_name[i][j] = NULL;
             sample_bank->voice_samples_mono[i][j] = 0;
             sample_bank->voice_samples_left[i][j] = 0;
@@ -700,7 +700,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
         wanted_patch = pheader->wPreset;
         wanted_bank = pheader->wBank;
 
-        if (wanted_bank == 128 || options->opt_drum) {
+        if (wanted_bank == UNSF_RANGE || options->opt_drum) {
             drum = TRUE;
             options->opt_drum_bank = wanted_patch;
         } else {
@@ -930,9 +930,9 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
 
     printf("Making bank directories.\n");
 
-    for (i = 0; i < 128; i++) if (sample_bank->tonebank[i]) tonebank_count++;
+    for (i = 0; i < UNSF_RANGE; i++) if (sample_bank->tonebank[i]) tonebank_count++;
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->tonebank[i]) {
             if (tonebank_count > 1) {
                 sprintf(tmpname, "%s-B%d", options->basename, i);
@@ -948,7 +948,7 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
         }
     }
     if (options->opt_no_write) return;
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
             if ((rcode = access(sample_bank->drumset_name[i], R_OK | W_OK | X_OK)))
                 rcode = mkdir(sample_bank->drumset_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -967,9 +967,9 @@ static void sort_velocity_layers(UnSF_Options *options, SampleBank *sample_bank)
     VelocityRangeList *vlist;
 
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->tonebank[i]) {
-            for (j = 0; j < 128; j++) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->voice_name[i][j]) {
                     vlist = sample_bank->voice_velocity[i][j];
                     if (vlist) {
@@ -1008,9 +1008,9 @@ static void sort_velocity_layers(UnSF_Options *options, SampleBank *sample_bank)
             }
         }
     }
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
-            for (j = 0; j < 128; j++) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->drum_name[i][j]) {
                     vlist = sample_bank->drum_velocity[i][j];
                     if (vlist) {
@@ -1055,9 +1055,9 @@ static void shorten_drum_names(SampleBank *sample_bank) {
     int i, j, right_patches;
     VelocityRangeList *vlist;
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
-            for (j = 0; j < 128; j++) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->drum_name[i][j]) {
                     vlist = sample_bank->drum_velocity[i][j];
                     if (vlist) {
@@ -1755,7 +1755,7 @@ static int getmodes(UnSF_Options *options, int sf_sustain_mod_env, int sampleFla
 
         if (sampleFlags && sf_sustain_mod_env == 0) sampleFlags = 3;
         else if (sampleFlags && sf_sustain_mod_env >= 1000) sampleFlags = 1;
-        else if (banknum != 128 && sampleFlags == 1) {
+        else if (banknum != UNSF_RANGE && sampleFlags == 1) {
             /* organs, accordians */
             if (program >= 16 && program <= 23) sampleFlags = 3;
                 /* strings */
@@ -1897,7 +1897,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         /* List of velocity layers with left and right patch counts. There is room for 10 here.
          * For each layer, give four bytes: velocity min, velocity max, #left patches, #right patches.
          */
-        if (wanted_bank == 128 || options->opt_drum) vlist = sample_bank->drum_velocity[banknum][program];
+        if (wanted_bank == UNSF_RANGE || options->opt_drum) vlist = sample_bank->drum_velocity[banknum][program];
         else vlist = sample_bank->voice_velocity[banknum][program];
         if (vlist) velcount = vlist->range_count;
         else velcount = 1;
@@ -2144,8 +2144,8 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         if (sustain > sp_meta.volume - 2) sustain = sp_meta.volume - 2;
 
         /*
-            if (!lay->set[SF_releaseEnv2] && banknum < 128) release = 400;
-            if (!lay->set[SF_decayEnv2] && banknum < 128) decay = 400;
+            if (!lay->set[SF_releaseEnv2] && banknum < UNSF_RANGE) release = 400;
+            if (!lay->set[SF_decayEnv2] && banknum < UNSF_RANGE) decay = 400;
         */
         delay = timecent2msec(sf_meta.delay_vol_env);
         attack = timecent2msec(sf_meta.attack_vol_env);
@@ -2369,7 +2369,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
             wanted_bank = 0;
         } else {
             wanted_patch = options->opt_drum_bank;
-            wanted_bank = 128;
+            wanted_bank = UNSF_RANGE;
         }
         wanted_keymin = num;
         wanted_keymax = num;
@@ -2716,10 +2716,10 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
 
 
     printf("Melodic patch files.\n");
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         abort_this_one = FALSE;
         if (sample_bank->tonebank[i])
-            for (j = 0; j < 128; j++)
+            for (j = 0; j < UNSF_RANGE; j++)
                 if (sample_bank->voice_name[i][j]) {
                     abort_this_one = FALSE;
                     vlist = sample_bank->voice_velocity[i][j];
@@ -2792,10 +2792,10 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                 }
     }
     printf("\nDrum patch files.\n");
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         abort_this_one = FALSE;
         if (sample_bank->drumset_name[i])
-            for (j = 0; j < 128; j++)
+            for (j = 0; j < UNSF_RANGE; j++)
                 if (sample_bank->drum_name[i][j]) {
                     abort_this_one = FALSE;
                     vlist = sample_bank->drum_velocity[i][j];
@@ -2883,10 +2883,10 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
 
     printf("Generating config file.\n");
 
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->tonebank[i]) {
             fprintf(options->cfg_fd, "\nbank %d #N %s\n", i, sample_bank->tonebank_name[i]);
-            for (j = 0; j < 128; j++) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->voice_name[i][j]) {
                     vlist = sample_bank->voice_velocity[i][j];
                     if (vlist) {
@@ -2909,10 +2909,10 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
             }
         }
     }
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
             fprintf(options->cfg_fd, "\ndrumset %d #N %s\n", i, sample_bank->drumset_short_name[i]);
-            for (j = 0; j < 128; j++) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->drum_name[i][j]) {
                     vlist = sample_bank->drum_velocity[i][j];
                     if (vlist) {
@@ -3270,7 +3270,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
     }
 
     /* cleaning up after strdup */
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank.tonebank[i]) {
             free(sample_bank.tonebank_name[i]);
             sample_bank.tonebank_name[i] = NULL;
@@ -3284,7 +3284,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
             sample_bank.drumset_short_name[i] = NULL;
         }
 
-        for (int j = 0; j < 128; j++) {
+        for (int j = 0; j < UNSF_RANGE; j++) {
             free(sample_bank.voice_name[i][j]);
             sample_bank.voice_name[i][j] = NULL;
 
