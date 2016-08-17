@@ -592,25 +592,25 @@ static char *getname(char *p) {
 }
 
 static void
-record_velocity_range(UnSF_Options options, SampleBank *samplebank, int drum, int banknum, int program, int velmin,
+record_velocity_range(UnSF_Options options, SampleBank *sample_bank, int drum, int banknum, int program, int velmin,
                       int velmax, int type) {
     int i, count;
     VelocityRangeList *vlist;
     char *name;
 
     if (drum) {
-        vlist = samplebank->drum_velocity[banknum][program];
-        name = samplebank->drum_name[banknum][program];
+        vlist = sample_bank->drum_velocity[banknum][program];
+        name = sample_bank->drum_name[banknum][program];
     }
     else {
-        vlist = samplebank->voice_velocity[banknum][program];
-        name = samplebank->voice_name[banknum][program];
+        vlist = sample_bank->voice_velocity[banknum][program];
+        name = sample_bank->voice_name[banknum][program];
     }
 
     if (!vlist) {
         vlist = (VelocityRangeList *) malloc(sizeof(VelocityRangeList));
-        if (drum) samplebank->drum_velocity[banknum][program] = vlist;
-        else samplebank->voice_velocity[banknum][program] = vlist;
+        if (drum) sample_bank->drum_velocity[banknum][program] = vlist;
+        else sample_bank->voice_velocity[banknum][program] = vlist;
         vlist->range_count = 0;
     }
     count = vlist->range_count;
@@ -3300,6 +3300,7 @@ void convert_sf_to_gus(UnSF_Options options) {
             free(sample_bank.tonebank_name[i]);
             sample_bank.tonebank_name[i] = NULL;
         }
+
         if (sample_bank.drumset_name[i]){
             free(sample_bank.drumset_name[i]);
             sample_bank.drumset_name[i] = NULL;
@@ -3307,6 +3308,21 @@ void convert_sf_to_gus(UnSF_Options options) {
             free(sample_bank.drumset_short_name[i]);
             sample_bank.drumset_short_name[i] = NULL;
         }
+
+        for (int j = 0; j < 128; j++){
+            free(sample_bank.voice_name[i][j]);
+            sample_bank.voice_name[i][j] = NULL;
+
+            free(sample_bank.drum_name[i][j]);
+            sample_bank.drum_name[i][j] = NULL;
+
+            free(sample_bank.drum_velocity[i][j]);
+            sample_bank.drum_velocity[i][j] = NULL;
+
+            free(sample_bank.voice_velocity[i][j]);
+            sample_bank.voice_velocity[i][j] = NULL;
+        }
+
     }
 
     /* oh, how polite I am... */
