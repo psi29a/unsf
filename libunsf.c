@@ -26,31 +26,33 @@
 #define RIGHT_SAMPLE 2
 #define MONO_SAMPLE 1
 
+#define UNSF_RANGE 128
+
 typedef struct VelocityRangeList {
     int range_count;
-    unsigned char velmin[128];
-    unsigned char velmax[128];
-    unsigned char mono_patches[128];
-    unsigned char left_patches[128];
-    unsigned char right_patches[128];
-    unsigned char other_patches[128];
+    unsigned char velmin[UNSF_RANGE];
+    unsigned char velmax[UNSF_RANGE];
+    unsigned char mono_patches[UNSF_RANGE];
+    unsigned char left_patches[UNSF_RANGE];
+    unsigned char right_patches[UNSF_RANGE];
+    unsigned char other_patches[UNSF_RANGE];
 } VelocityRangeList;
 
 typedef struct SampleBank {
-    int tonebank[128];
-    char *tonebank_name[128];
-    char *voice_name[128][128];
-    int voice_samples_mono[128][128];
-    int voice_samples_left[128][128];
-    int voice_samples_right[128][128];
-    VelocityRangeList *voice_velocity[128][128];
-    char *drumset_name[128];
-    char *drumset_short_name[128];
-    char *drum_name[128][128];
-    int drum_samples_mono[128][128];
-    int drum_samples_left[128][128];
-    int drum_samples_right[128][128];
-    VelocityRangeList *drum_velocity[128][128];
+    int tonebank[UNSF_RANGE];
+    char *tonebank_name[UNSF_RANGE];
+    char *voice_name[UNSF_RANGE][UNSF_RANGE];
+    int voice_samples_mono[UNSF_RANGE][UNSF_RANGE];
+    int voice_samples_left[UNSF_RANGE][UNSF_RANGE];
+    int voice_samples_right[UNSF_RANGE][UNSF_RANGE];
+    VelocityRangeList *voice_velocity[UNSF_RANGE][UNSF_RANGE];
+    char *drumset_name[UNSF_RANGE];
+    char *drumset_short_name[UNSF_RANGE];
+    char *drum_name[UNSF_RANGE][UNSF_RANGE];
+    int drum_samples_mono[UNSF_RANGE][UNSF_RANGE];
+    int drum_samples_left[UNSF_RANGE][UNSF_RANGE];
+    int drum_samples_right[UNSF_RANGE][UNSF_RANGE];
+    VelocityRangeList *drum_velocity[UNSF_RANGE][UNSF_RANGE];
     char cpyrt[256];
 } SampleBank;
 
@@ -322,7 +324,7 @@ enum {
 #define TO_HZ(abscents) (int)(8.176 * pow(2.0,(double)(abscents)/1200.0))
 #define TO_HZ20(abscents) (int)(20 * 8.176 * pow(2.0,(double)(abscents)/1200.0))
 
-static unsigned int freq_table[128] =
+static unsigned int freq_table[UNSF_RANGE] =
         {
                 8176, 8662, 9177, 9723,
                 10301, 10913, 11562, 12250,
@@ -435,7 +437,7 @@ static double bend_fine[256] = {
         1.0585073227945128, 1.0587461848213857, 1.058985100749698, 1.0592240705916123
 };
 
-static double bend_coarse[128] = {
+static double bend_coarse[UNSF_RANGE] = {
         1, 1.0594630943592953, 1.122462048309373, 1.189207115002721,
         1.2599210498948732, 1.3348398541700344, 1.4142135623730951, 1.4983070768766815,
         1.5874010519681994, 1.681792830507429, 1.7817974362806785, 1.8877486253633868,
@@ -553,8 +555,7 @@ static char *getname(char *p) {
         if (buf[i] == '/') {
             if (i) buf[i] = '.';
             else buf[i] = ' ';
-        }
-        else if (buf[i] == '\\') buf[i] = ' ';
+        } else if (buf[i] == '\\') buf[i] = ' ';
         else if (buf[i] == '#') buf[i] = ' ';
         else if (buf[i] == '|') buf[i] = ' ';
         else if (buf[i] == '&') buf[i] = ' ';
@@ -601,8 +602,7 @@ record_velocity_range(UnSF_Options *options, SampleBank *sample_bank, int drum, 
     if (drum) {
         vlist = sample_bank->drum_velocity[banknum][program];
         name = sample_bank->drum_name[banknum][program];
-    }
-    else {
+    } else {
         vlist = sample_bank->voice_velocity[banknum][program];
         name = sample_bank->voice_name[banknum][program];
     }
@@ -703,8 +703,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
         if (wanted_bank == 128 || options->opt_drum) {
             drum = TRUE;
             options->opt_drum_bank = wanted_patch;
-        }
-        else {
+        } else {
             drum = FALSE;
             options->opt_bank = wanted_bank;
         }
@@ -726,8 +725,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                 sample_bank->drumset_name[options->opt_drum_bank] = unsf_strdup(tmpname);
                 if (options->opt_verbose) printf("drumset #%d %s\n", options->opt_drum_bank, s);
             }
-        }
-        else {
+        } else {
             if (!sample_bank->voice_name[options->opt_bank][wanted_patch]) {
                 sample_bank->voice_name[options->opt_bank][wanted_patch] = unsf_strdup(s);
                 if (options->opt_verbose) printf("bank #%d voice #%d %s\n", options->opt_bank, wanted_patch, s);
@@ -905,8 +903,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                                 record_velocity_range(options, sample_bank, drum, options->opt_drum_bank, drumnum,
                                                       velmin, velmax, sample->sfSampleType);
                             }
-                        }
-                        else {
+                        } else {
                             if (sample->sfSampleType == LEFT_SAMPLE)
                                 sample_bank->voice_samples_left[options->opt_bank][wanted_patch]++;
                             else if (sample->sfSampleType == RIGHT_SAMPLE)
@@ -940,8 +937,7 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
             if (tonebank_count > 1) {
                 sprintf(tmpname, "%s-B%d", options->basename, i);
                 sample_bank->tonebank_name[i] = unsf_strdup(tmpname);
-            }
-            else sample_bank->tonebank_name[i] = unsf_strdup(options->basename);
+            } else sample_bank->tonebank_name[i] = unsf_strdup(options->basename);
             if (options->opt_no_write) continue;
             if ((rcode = access(sample_bank->tonebank_name[i], R_OK | W_OK | X_OK)))
                 rcode = mkdir(sample_bank->tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -1007,8 +1003,7 @@ static void sort_velocity_layers(UnSF_Options *options, SampleBank *sample_bank)
                             vlist->left_patches[widest] = left_patches;
                             vlist->right_patches[widest] = right_patches;
                         }
-                    }
-                    else continue;
+                    } else continue;
                 }
             }
         }
@@ -1049,8 +1044,7 @@ static void sort_velocity_layers(UnSF_Options *options, SampleBank *sample_bank)
                             vlist->left_patches[widest] = left_patches;
                             vlist->right_patches[widest] = right_patches;
                         }
-                    }
-                    else continue;
+                    } else continue;
                 }
             }
         }
@@ -1068,8 +1062,7 @@ static void shorten_drum_names(SampleBank *sample_bank) {
                     vlist = sample_bank->drum_velocity[i][j];
                     if (vlist) {
                         right_patches = vlist->right_patches[0];
-                    }
-                    else {
+                    } else {
                         continue;
                     }
                     if (right_patches) {
@@ -1267,8 +1260,7 @@ static void apply_generator(UnSF_Options *options, SF_Meta *sf_meta, sfGenList *
                     sf_meta->keymin = g->genAmount.ranges.byLo;
                     sf_meta->keymax = g->genAmount.ranges.byHi;
                 }
-            }
-            else {
+            } else {
                 sf_meta->keymin = g->genAmount.ranges.byLo;
                 sf_meta->keymax = g->genAmount.ranges.byHi;
             }
@@ -1280,8 +1272,7 @@ static void apply_generator(UnSF_Options *options, SF_Meta *sf_meta, sfGenList *
                     sf_meta->velmin = g->genAmount.ranges.byLo;
                     sf_meta->velmax = g->genAmount.ranges.byHi;
                 }
-            }
-            else {
+            } else {
                 sf_meta->velmin = g->genAmount.ranges.byLo;
                 sf_meta->velmax = g->genAmount.ranges.byHi;
             }
@@ -1538,8 +1529,7 @@ static void convert_vibrato(SP_Meta *sp_meta, SF_Meta *sf_meta) {
         shift = sf_meta->vibLfoToPitch;
         if (sf_meta->freqVibLFO) freq = sf_meta->freqVibLFO;
         if (sf_meta->delayVibLFO) delay = (int) timecent2msec(sf_meta->delayVibLFO);
-    }
-    else if (sf_meta->modLfoToPitch) {
+    } else if (sf_meta->modLfoToPitch) {
         shift = sf_meta->modLfoToPitch;
         if (sf_meta->freqModLFO) freq = sf_meta->freqModLFO;
         if (sf_meta->delayModLFO) delay = sp_meta->delayModLFO;
@@ -1682,18 +1672,15 @@ static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta) {
 
     if (sf_meta->modEnvToFilterFc /*&& sf_meta->initialFilterFc*/) {
         sp_meta->modEnvToFilterFc = pow(2.0, ((double) sf_meta->modEnvToFilterFc / 1200.0));
-    }
-    else sp_meta->modEnvToFilterFc = 0;
+    } else sp_meta->modEnvToFilterFc = 0;
 
     if (sf_meta->modLfoToFilterFc /* && sf_meta->initialFilterFc*/) {
         sp_meta->modLfoToFilterFc = pow(2.0, ((double) sf_meta->modLfoToFilterFc / 1200.0));
-    }
-    else sp_meta->modLfoToFilterFc = 0;
+    } else sp_meta->modLfoToFilterFc = 0;
 
     if (sf_meta->mod_env_to_pitch) {
         sp_meta->modEnvToPitch = pow(2.0, ((double) sf_meta->mod_env_to_pitch / 1200.0));
-    }
-    else sp_meta->modEnvToPitch = 0;
+    } else sp_meta->modEnvToPitch = 0;
 
     sp_meta->cutoff_freq = TO_HZ(val);
     if (val < 0 || val > 24000) val = 19192;
@@ -1790,8 +1777,7 @@ static int getmodes(UnSF_Options *options, int sf_sustain_mod_env, int sampleFla
         if (options->opt_verbose && orig_sampleFlags != sampleFlags)
             printf("changed sampleFlags from %d to %d\n",
                    orig_sampleFlags, sampleFlags);
-    }
-    else if (sampleFlags == 1) sampleFlags = 3;
+    } else if (sampleFlags == 1) sampleFlags = 3;
 
     if (sampleFlags == 1 || sampleFlags == 3)
         modes |= MODES_LOOPING;
@@ -1930,8 +1916,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
                 if (vlist->right_patches[k] && !options->opt_mono)
                     right_patches = vlist->right_patches[k]/* + vlist->mono_patches[k]*/;
                 else right_patches = 0;
-            }
-            else {
+            } else {
                 fprintf(stderr, "Internal error.\n");
                 exit(1);
             }
@@ -1960,8 +1945,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
                     if (vlist->right_patches[k] && !options->opt_mono)
                         right_patches = vlist->right_patches[k]/* + vlist->mono_patches[k]*/;
                     else right_patches = 0;
-                }
-                else {
+                } else {
                     fprintf(stderr, "Internal error.\n");
                     exit(1);
                 }
@@ -1973,8 +1957,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
             }
             for (i = 0; i < 40 - 4 * (velcount - velcount_part1); i++)                   /* reserved */
                 mem_write8(0, mem, mem_size, mem_alloced);
-        }
-        else {
+        } else {
             for (i = 0; i < 40; i++)                   /* reserved */
                 mem_write8(0, mem, mem_size, mem_alloced);
         }
@@ -2004,8 +1987,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         for (i = 0; i < waiting_list[n].igen_count; i++) {
             if (waiting_list[n].igen[i].sfGenOper == SFGEN_initialAttenuation) {
                 v = waiting_list[n].igen[i].genAmount.shAmount;
-            }
-            else if (waiting_list[n].igen[i].sfGenOper == SFGEN_keyRange) {
+            } else if (waiting_list[n].igen[i].sfGenOper == SFGEN_keyRange) {
                 keymin = waiting_list[n].igen[i].genAmount.ranges.byLo;
                 keymax = waiting_list[n].igen[i].genAmount.ranges.byHi;
             }
@@ -2014,8 +1996,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         for (i = 0; i < waiting_list[n].pgen_count; i++) {
             if (waiting_list[n].pgen[i].sfGenOper == SFGEN_initialAttenuation) {
                 v += waiting_list[n].pgen[i].genAmount.shAmount;
-            }
-            else if (waiting_list[n].pgen[i].sfGenOper == SFGEN_keyRange) {
+            } else if (waiting_list[n].pgen[i].sfGenOper == SFGEN_keyRange) {
                 keymin = waiting_list[n].pgen[i].genAmount.ranges.byLo;
                 keymax = waiting_list[n].pgen[i].genAmount.ranges.byHi;
             }
@@ -2211,8 +2192,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
             mem_write32(length, mem, mem_size, mem_alloced);             /* waveform size */
             mem_write32(sf_meta.loop_start, mem, mem_size, mem_alloced);      /* loop start */
             mem_write32(sf_meta.loop_end, mem, mem_size, mem_alloced);        /* loop end */
-        }
-        else {
+        } else {
             mem_write32(length * 2, mem, mem_size, mem_alloced);           /* waveform size */
             mem_write32(sf_meta.loop_start * 2, mem, mem_size, mem_alloced);    /* loop start */
             mem_write32(sf_meta.loop_end * 2, mem, mem_size, mem_alloced);      /* loop end */
@@ -2285,8 +2265,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
             if (options->opt_veryverbose) printf("vol comp %d", sp_meta.volume);
             sample_volume = adjust_volume(sf_sample_data, sample->dwStart, length);
             if (options->opt_veryverbose) printf(" -> %d\n", sample_volume);
-        }
-        else sample_volume = sp_meta.volume;
+        } else sample_volume = sp_meta.volume;
 
         mem_write16(sample_volume, mem, mem_size, mem_alloced); /* I'm not sure this is here. (gl) */
 
@@ -2342,8 +2321,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         if (options->opt_8bit) {                     /* sample waveform */
             for (i = 0; i < length; i++)
                 mem_write8((int) ((sf_sample_data[sample->dwStart + i] >> 8) * vol) ^ 0x80, mem, mem_size, mem_alloced);
-        }
-        else {
+        } else {
             for (i = 0; i < length; i++)
                 mem_write16(sf_sample_data[sample->dwStart + i], mem, mem_size, mem_alloced);
         }
@@ -2389,15 +2367,13 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
         if (options->opt_drum) {
             wanted_patch = options->opt_drum_bank;
             wanted_bank = 0;
-        }
-        else {
+        } else {
             wanted_patch = options->opt_drum_bank;
             wanted_bank = 128;
         }
         wanted_keymin = num;
         wanted_keymax = num;
-    }
-    else {
+    } else {
         wanted_patch = num;
         wanted_bank = options->opt_bank;
         wanted_keymin = 0;
@@ -2428,7 +2404,8 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                 i--;
             }
 
-            if (options->opt_verbose) printf("Grabbing %s%s -> %s\n", options->opt_right_channel ? "R " : "L ", s, name);
+            if (options->opt_verbose)
+                printf("Grabbing %s%s -> %s\n", options->opt_right_channel ? "R " : "L ", s, name);
             else if (!options->opt_no_write) {
                 printf(".");
                 fflush(stdout);
@@ -2466,8 +2443,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                     global_pzone = pgen;
                     global_pzone_count = pgen_count;
                     global_preset_layer = TRUE;
-                }
-                else global_preset_layer = FALSE;
+                } else global_preset_layer = FALSE;
 
                 if (pgen[0].sfGenOper == SFGEN_keyRange) {
                     preset_keymin = pgen[0].genAmount.ranges.byLo;
@@ -2647,11 +2623,9 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                                 waiting_list[waiting_list_count].stereo_mode = sample->sfSampleType;
                                 waiting_list_count++;
 
-                            }
-                            else
+                            } else
                                 waiting_room_full = TRUE;
-                        }
-                        else if (igen_count > 0) { /* global instrument zone */
+                        } else if (igen_count > 0) { /* global instrument zone */
 
                             global_izone = igen;
                             global_izone_count = igen_count;
@@ -2708,8 +2682,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                     return grab_soundfont_sample(options, name, wanted_patch, wanted_bank, wanted_bank,
                                                  waiting_list_count, waiting_list, mem, mem_alloced, mem_size,
                                                  sf_sample_data, sample_bank);
-            }
-            else {
+            } else {
                 fprintf(stderr, "\nStrange... no valid layers found in instrument %s bank %d prog %d\n",
                         name, drum ? wanted_patch : wanted_bank, drum ? wanted_keymin : wanted_patch);
                 return FALSE;
@@ -2760,8 +2733,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             wanted_velmin = vlist->velmin[k];
                             wanted_velmax = vlist->velmax[k];
                             right_patches = vlist->right_patches[k];
-                        }
-                        else {
+                        } else {
                             wanted_velmin = 0;
                             wanted_velmax = 127;
                             right_patches = sample_bank->voice_samples_right[i][j];
@@ -2787,10 +2759,12 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                         if (right_patches && !options->opt_mono) {
                             options->opt_left_channel = FALSE;
                             options->opt_right_channel = TRUE;
-                            if (!grab_soundfont(options, j, FALSE, sample_bank->voice_name[i][j], wanted_velmin, wanted_velmax,
+                            if (!grab_soundfont(options, j, FALSE, sample_bank->voice_name[i][j], wanted_velmin,
+                                                wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                                sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
+                                                sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data,
+                                                sample_bank)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         sample_bank->voice_name[i][j], sample_bank->tonebank_name[i]);
                                 fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2827,7 +2801,8 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     vlist = sample_bank->drum_velocity[i][j];
                     if (vlist) velcount = vlist->range_count;
                     else velcount = 1;
-                    if (!vlist) fprintf(stderr, "Uh oh, drum #%d %s has no velocity list\n", i, sample_bank->drumset_name[i]);
+                    if (!vlist)
+                        fprintf(stderr, "Uh oh, drum #%d %s has no velocity list\n", i, sample_bank->drumset_name[i]);
                     if (options->opt_small) velcount = 1;
                     options->opt_drum_bank = i;
                     options->opt_header = TRUE;
@@ -2836,15 +2811,15 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             wanted_velmin = vlist->velmin[k];
                             wanted_velmax = vlist->velmax[k];
                             right_patches = vlist->right_patches[k];
-                        }
-                        else {
+                        } else {
                             wanted_velmin = 0;
                             wanted_velmax = 127;
                             right_patches = sample_bank->drum_samples_right[i][j];
                         }
                         options->opt_left_channel = TRUE;
                         options->opt_right_channel = FALSE;
-                        if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin, wanted_velmax,
+                        if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin,
+                                            wanted_velmax,
                                             sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                             sf_instruments, sf_instrument_indexes, sf_instrument_generators,
                                             sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
@@ -2862,10 +2837,12 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                         if (right_patches && !options->opt_mono) {
                             options->opt_left_channel = FALSE;
                             options->opt_right_channel = TRUE;
-                            if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin, wanted_velmax,
+                            if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin,
+                                                wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
-                                                sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data, sample_bank)) {
+                                                sf_samples, &mem, &mem_alloced, &mem_size, sf_sample_data,
+                                                sample_bank)) {
                                 fprintf(stderr, "Could not create right patch %s for bank %s\n",
                                         sample_bank->drum_name[i][j], sample_bank->drumset_name[i]);
                                 fprintf(stderr, "\tlayer %d of %d layer(s)\n", k + 1, velcount);
@@ -2915,8 +2892,7 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
                     if (vlist) {
                         velcount = vlist->range_count;
                         right_patches = vlist->right_patches[0];
-                    }
-                    else {
+                    } else {
                         fprintf(options->cfg_fd, "\t# %d %s could not be extracted\n", j,
                                 sample_bank->voice_name[i][j]);
                         continue;
@@ -2942,8 +2918,7 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
                     if (vlist) {
                         velcount = vlist->range_count;
                         right_patches = vlist->right_patches[0];
-                    }
-                    else {
+                    } else {
                         fprintf(options->cfg_fd, "\t# %d %s could not be extracted\n", j,
                                 sample_bank->drum_name[i][j]);
                         continue;
@@ -3301,7 +3276,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
             sample_bank.tonebank_name[i] = NULL;
         }
 
-        if (sample_bank.drumset_name[i]){
+        if (sample_bank.drumset_name[i]) {
             free(sample_bank.drumset_name[i]);
             sample_bank.drumset_name[i] = NULL;
 
@@ -3309,7 +3284,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
             sample_bank.drumset_short_name[i] = NULL;
         }
 
-        for (int j = 0; j < 128; j++){
+        for (int j = 0; j < 128; j++) {
             free(sample_bank.voice_name[i][j]);
             sample_bank.voice_name[i][j] = NULL;
 
