@@ -518,7 +518,7 @@ static void calc_end(RIFF_CHUNK *chunk, FILE *f) {
 
 
 /* reads and displays a SoundFont text/copyright message */
-static void print_sf_string(UnSF_Options options, FILE *f, char *title, int opt_no_write, SampleBank *samplebank) {
+static void print_sf_string(UnSF_Options *options, FILE *f, char *title, int opt_no_write, SampleBank *samplebank) {
     char buf[256];
     char ch;
     int i = 0;
@@ -536,7 +536,7 @@ static void print_sf_string(UnSF_Options options, FILE *f, char *title, int opt_
         strcat(samplebank->cpyrt, buf);
     }
 
-    if (!options.opt_no_write) fprintf(options.cfg_fd, "# %-12s%s\n", title, buf);
+    if (!options->opt_no_write) fprintf(options->cfg_fd, "# %-12s%s\n", title, buf);
 }
 
 static char *getname(char *p) {
@@ -592,7 +592,7 @@ static char *getname(char *p) {
 }
 
 static void
-record_velocity_range(UnSF_Options options, SampleBank *sample_bank, int drum, int banknum, int program, int velmin,
+record_velocity_range(UnSF_Options *options, SampleBank *sample_bank, int drum, int banknum, int program, int velmin,
                       int velmax, int type) {
     int i, count;
     VelocityRangeList *vlist;
@@ -635,7 +635,7 @@ record_velocity_range(UnSF_Options options, SampleBank *sample_bank, int drum, i
         vlist->other_patches[i]++;
     }
 
-    if (options.opt_veryverbose)
+    if (options->opt_veryverbose)
         printf("%s#%d velocity range %d-%d for %s chan %s has %d patches\n", (i == count) ? "new " : "",
                vlist->range_count, velmin, velmax,
                name, (type == LEFT_SAMPLE) ? "left" : (type == RIGHT_SAMPLE) ? "right" : "mono",
@@ -644,7 +644,7 @@ record_velocity_range(UnSF_Options options, SampleBank *sample_bank, int drum, i
 }
 
 /* gets facts and names */
-static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPresetHeader *sf_presets,
+static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPresetHeader *sf_presets,
                                 sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
                                 sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
                                 sfGenList *sf_instrument_generators, sfSample *sf_samples, SampleBank *sample_bank
@@ -700,13 +700,13 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
         wanted_patch = pheader->wPreset;
         wanted_bank = pheader->wBank;
 
-        if (wanted_bank == 128 || options.opt_drum) {
+        if (wanted_bank == 128 || options->opt_drum) {
             drum = TRUE;
-            options.opt_drum_bank = wanted_patch;
+            options->opt_drum_bank = wanted_patch;
         }
         else {
             drum = FALSE;
-            options.opt_bank = wanted_bank;
+            options->opt_bank = wanted_bank;
         }
 
         /* find what substructures it uses */
@@ -720,18 +720,18 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
         s = getname(pheader->achPresetName);
 
         if (drum) {
-            if (!sample_bank->drumset_name[options.opt_drum_bank]) {
-                sample_bank->drumset_short_name[options.opt_drum_bank] = unsf_strdup(s);
-                sprintf(tmpname, "%s-%s", options.basename, s);
-                sample_bank->drumset_name[options.opt_drum_bank] = unsf_strdup(tmpname);
-                if (options.opt_verbose) printf("drumset #%d %s\n", options.opt_drum_bank, s);
+            if (!sample_bank->drumset_name[options->opt_drum_bank]) {
+                sample_bank->drumset_short_name[options->opt_drum_bank] = unsf_strdup(s);
+                sprintf(tmpname, "%s-%s", options->basename, s);
+                sample_bank->drumset_name[options->opt_drum_bank] = unsf_strdup(tmpname);
+                if (options->opt_verbose) printf("drumset #%d %s\n", options->opt_drum_bank, s);
             }
         }
         else {
-            if (!sample_bank->voice_name[options.opt_bank][wanted_patch]) {
-                sample_bank->voice_name[options.opt_bank][wanted_patch] = unsf_strdup(s);
-                if (options.opt_verbose) printf("bank #%d voice #%d %s\n", options.opt_bank, wanted_patch, s);
-                sample_bank->tonebank[options.opt_bank] = TRUE;
+            if (!sample_bank->voice_name[options->opt_bank][wanted_patch]) {
+                sample_bank->voice_name[options->opt_bank][wanted_patch] = unsf_strdup(s);
+                if (options->opt_verbose) printf("bank #%d voice #%d %s\n", options->opt_bank, wanted_patch, s);
+                sample_bank->tonebank[options->opt_bank] = TRUE;
             }
         }
 
@@ -883,7 +883,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
 
                         if (sample->sfSampleType & 0x8000) {
                             printf("This SoundFont uses AWE32 ROM data in sample %s\n", s);
-                            if (options.opt_veryverbose)
+                            if (options->opt_veryverbose)
                                 printf("\n");
                             continue;
                         }
@@ -892,27 +892,27 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
                             int pool_num;
                             for (pool_num = keymin; pool_num <= keymax; pool_num++) {
                                 drumnum = pool_num;
-                                if (!sample_bank->drum_name[options.opt_drum_bank][drumnum]) {
-                                    sample_bank->drum_name[options.opt_drum_bank][drumnum] = unsf_strdup(s);
-                                    if (options.opt_verbose)
-                                        printf("drumset #%d drum #%d %s\n", options.opt_drum_bank, drumnum, s);
+                                if (!sample_bank->drum_name[options->opt_drum_bank][drumnum]) {
+                                    sample_bank->drum_name[options->opt_drum_bank][drumnum] = unsf_strdup(s);
+                                    if (options->opt_verbose)
+                                        printf("drumset #%d drum #%d %s\n", options->opt_drum_bank, drumnum, s);
                                 }
                                 if (sample->sfSampleType == LEFT_SAMPLE)
-                                    sample_bank->drum_samples_left[options.opt_drum_bank][drumnum]++;
+                                    sample_bank->drum_samples_left[options->opt_drum_bank][drumnum]++;
                                 else if (sample->sfSampleType == RIGHT_SAMPLE)
-                                    sample_bank->drum_samples_right[options.opt_drum_bank][drumnum]++;
-                                else sample_bank->drum_samples_mono[options.opt_drum_bank][drumnum]++;
-                                record_velocity_range(options, sample_bank, drum, options.opt_drum_bank, drumnum,
+                                    sample_bank->drum_samples_right[options->opt_drum_bank][drumnum]++;
+                                else sample_bank->drum_samples_mono[options->opt_drum_bank][drumnum]++;
+                                record_velocity_range(options, sample_bank, drum, options->opt_drum_bank, drumnum,
                                                       velmin, velmax, sample->sfSampleType);
                             }
                         }
                         else {
                             if (sample->sfSampleType == LEFT_SAMPLE)
-                                sample_bank->voice_samples_left[options.opt_bank][wanted_patch]++;
+                                sample_bank->voice_samples_left[options->opt_bank][wanted_patch]++;
                             else if (sample->sfSampleType == RIGHT_SAMPLE)
-                                sample_bank->voice_samples_right[options.opt_bank][wanted_patch]++;
-                            else sample_bank->voice_samples_mono[options.opt_bank][wanted_patch]++;
-                            record_velocity_range(options, sample_bank, 0, options.opt_bank, wanted_patch,
+                                sample_bank->voice_samples_right[options->opt_bank][wanted_patch]++;
+                            else sample_bank->voice_samples_mono[options->opt_bank][wanted_patch]++;
+                            record_velocity_range(options, sample_bank, 0, options->opt_bank, wanted_patch,
                                                   velmin, velmax, sample->sfSampleType);
                         }
                     }
@@ -927,7 +927,7 @@ static int grab_soundfont_banks(UnSF_Options options, int sf_num_presets, sfPres
     return TRUE;
 }
 
-static void make_directories(UnSF_Options options, SampleBank *sample_bank) {
+static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
     int i, rcode, tonebank_count = 0;
     char tmpname[80];
 
@@ -938,11 +938,11 @@ static void make_directories(UnSF_Options options, SampleBank *sample_bank) {
     for (i = 0; i < 128; i++) {
         if (sample_bank->tonebank[i]) {
             if (tonebank_count > 1) {
-                sprintf(tmpname, "%s-B%d", options.basename, i);
+                sprintf(tmpname, "%s-B%d", options->basename, i);
                 sample_bank->tonebank_name[i] = unsf_strdup(tmpname);
             }
-            else sample_bank->tonebank_name[i] = unsf_strdup(options.basename);
-            if (options.opt_no_write) continue;
+            else sample_bank->tonebank_name[i] = unsf_strdup(options->basename);
+            if (options->opt_no_write) continue;
             if ((rcode = access(sample_bank->tonebank_name[i], R_OK | W_OK | X_OK)))
                 rcode = mkdir(sample_bank->tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
             if (rcode) {
@@ -951,7 +951,7 @@ static void make_directories(UnSF_Options options, SampleBank *sample_bank) {
             }
         }
     }
-    if (options.opt_no_write) return;
+    if (options->opt_no_write) return;
     for (i = 0; i < 128; i++) {
         if (sample_bank->drumset_name[i]) {
             if ((rcode = access(sample_bank->drumset_name[i], R_OK | W_OK | X_OK)))
@@ -965,7 +965,7 @@ static void make_directories(UnSF_Options options, SampleBank *sample_bank) {
 }
 
 
-static void sort_velocity_layers(UnSF_Options options, SampleBank *sample_bank) {
+static void sort_velocity_layers(UnSF_Options *options, SampleBank *sample_bank) {
     int i, j, k, velmin, velmax, velcount, left_patches, right_patches, mono_patches;
     int width, widest;
     VelocityRangeList *vlist;
@@ -986,8 +986,8 @@ static void sort_velocity_layers(UnSF_Options options, SampleBank *sample_bank) 
                                 width = vlist->velmax[k] - vlist->velmin[k];
                             }
                         }
-                        if (options.melody_velocity_override[i][j] != -1)
-                            widest = options.melody_velocity_override[i][j];
+                        if (options->melody_velocity_override[i][j] != -1)
+                            widest = options->melody_velocity_override[i][j];
                         if (widest) {
                             velmin = vlist->velmin[0];
                             velmax = vlist->velmax[0];
@@ -1028,8 +1028,8 @@ static void sort_velocity_layers(UnSF_Options options, SampleBank *sample_bank) 
                                 width = vlist->velmax[k] - vlist->velmin[k];
                             }
                         }
-                        if (options.drum_velocity_override[i][j] != -1)
-                            widest = options.drum_velocity_override[i][j];
+                        if (options->drum_velocity_override[i][j] != -1)
+                            widest = options->drum_velocity_override[i][j];
                         if (widest) {
                             velmin = vlist->velmin[0];
                             velmax = vlist->velmax[0];
@@ -1163,7 +1163,7 @@ static int msec2gus(int t, int r) {
 }
 
 /* interprets a SoundFont generator object */
-static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g, int preset, int global) {
+static void apply_generator(UnSF_Options *options, SF_Meta *sf_meta, sfGenList *g, int preset, int global) {
     switch (g->sfGenOper) {
 
         case SFGEN_startAddrsOffset:
@@ -1473,7 +1473,7 @@ static void apply_generator(UnSF_Options options, SF_Meta *sf_meta, sfGenList *g
             break;
         case SFGEN_unused5:
             sf_meta->instrument_unused5 = g->genAmount.shAmount;
-            if (options.opt_verbose) printf("APS parameter %d\n", sf_meta->instrument_unused5);
+            if (options->opt_verbose) printf("APS parameter %d\n", sf_meta->instrument_unused5);
             break;
         default:
             fprintf(stderr, "Warning: generator %d with value %d not handled at the %s %s level\n",
@@ -1748,13 +1748,13 @@ convert_lfo(SP_Meta *sp_meta, SF_Meta *sf_meta)
  * so the following uses some heuristics to guess whether to
  * set looping and sustain modes. (gl)
  */
-static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlags, int program, int banknum) {
+static int getmodes(UnSF_Options *options, int sf_sustain_mod_env, int sampleFlags, int program, int banknum) {
     int modes;
     int orig_sampleFlags = sampleFlags;
 
     modes = MODES_ENVELOPE;
 
-    if (options.opt_8bit)
+    if (options->opt_8bit)
         modes |= MODES_UNSIGNED;                      /* signed waveform */
     else
         modes |= MODES_16BIT;                      /* 16-bit waveform */
@@ -1764,7 +1764,7 @@ static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlag
 
     /* arbitrary adjustments (look at sustain of vol envelope? ) */
 
-    if (options.opt_adjust_sample_flags) {
+    if (options->opt_adjust_sample_flags) {
 
         if (sampleFlags && sf_sustain_mod_env == 0) sampleFlags = 3;
         else if (sampleFlags && sf_sustain_mod_env >= 1000) sampleFlags = 1;
@@ -1787,7 +1787,7 @@ static int getmodes(UnSF_Options options, int sf_sustain_mod_env, int sampleFlag
             else if (program == 126) sampleFlags = 3;
         }
 
-        if (options.opt_verbose && orig_sampleFlags != sampleFlags)
+        if (options->opt_verbose && orig_sampleFlags != sampleFlags)
             printf("changed sampleFlags from %d to %d\n",
                    orig_sampleFlags, sampleFlags);
     }
@@ -1838,7 +1838,7 @@ static int adjust_volume(short *sf_sample_data, int start, int length) {
 }
 
 /* copies data from the waiting list into a GUS .pat struct */
-static int grab_soundfont_sample(UnSF_Options options, char *name, int program, int banknum, int wanted_bank,
+static int grab_soundfont_sample(UnSF_Options *options, char *name, int program, int banknum, int wanted_bank,
                                  int waiting_list_count, EMPTY_WHITE_ROOM *waiting_list, unsigned char **mem,
                                  int *mem_alloced, int *mem_size, short *sf_sample_data, SampleBank *sample_bank) {
     sfSample *sample;
@@ -1869,7 +1869,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
     SP_Meta sp_meta;
 
 
-    if (options.opt_header) {
+    if (options->opt_header) {
         VelocityRangeList *vlist;
         int velcount, velcount_part1, k, velmin, velmax, left_patches, right_patches;
 
@@ -1911,11 +1911,11 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         /* List of velocity layers with left and right patch counts. There is room for 10 here.
          * For each layer, give four bytes: velocity min, velocity max, #left patches, #right patches.
          */
-        if (wanted_bank == 128 || options.opt_drum) vlist = sample_bank->drum_velocity[banknum][program];
+        if (wanted_bank == 128 || options->opt_drum) vlist = sample_bank->drum_velocity[banknum][program];
         else vlist = sample_bank->voice_velocity[banknum][program];
         if (vlist) velcount = vlist->range_count;
         else velcount = 1;
-        if (options.opt_small) velcount = 1;
+        if (options->opt_small) velcount = 1;
         if (velcount > 19) velcount = 19;
         if (velcount > 9) velcount_part1 = 9;
         else velcount_part1 = velcount;
@@ -1927,7 +1927,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
                 velmin = vlist->velmin[k];
                 velmax = vlist->velmax[k];
                 left_patches = vlist->left_patches[k] + vlist->mono_patches[k];
-                if (vlist->right_patches[k] && !options.opt_mono)
+                if (vlist->right_patches[k] && !options->opt_mono)
                     right_patches = vlist->right_patches[k]/* + vlist->mono_patches[k]*/;
                 else right_patches = 0;
             }
@@ -1957,7 +1957,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
                     velmin = vlist->velmin[k];
                     velmax = vlist->velmax[k];
                     left_patches = vlist->left_patches[k] + vlist->mono_patches[k];
-                    if (vlist->right_patches[k] && !options.opt_mono)
+                    if (vlist->right_patches[k] && !options->opt_mono)
                         right_patches = vlist->right_patches[k]/* + vlist->mono_patches[k]*/;
                     else right_patches = 0;
                 }
@@ -2207,7 +2207,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 
         mem_write8(0, mem, mem_size, mem_alloced);                      /* fractions */
 
-        if (options.opt_8bit) {
+        if (options->opt_8bit) {
             mem_write32(length, mem, mem_size, mem_alloced);             /* waveform size */
             mem_write32(sf_meta.loop_start, mem, mem_size, mem_alloced);      /* loop start */
             mem_write32(sf_meta.loop_end, mem, mem_size, mem_alloced);        /* loop end */
@@ -2281,10 +2281,10 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
         mem_write16(sp_meta.freq_center, mem, mem_size, mem_alloced);
         mem_write16(freq_scale, mem, mem_size, mem_alloced);           /* scale factor */
 
-        if (options.opt_adjust_volume) {
-            if (options.opt_veryverbose) printf("vol comp %d", sp_meta.volume);
+        if (options->opt_adjust_volume) {
+            if (options->opt_veryverbose) printf("vol comp %d", sp_meta.volume);
             sample_volume = adjust_volume(sf_sample_data, sample->dwStart, length);
-            if (options.opt_veryverbose) printf(" -> %d\n", sample_volume);
+            if (options->opt_veryverbose) printf(" -> %d\n", sample_volume);
         }
         else sample_volume = sp_meta.volume;
 
@@ -2339,7 +2339,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
             mem_write8(255, mem, mem_size, mem_alloced);
         else mem_write8(sf_meta.instrument_unused5, mem, mem_size, mem_alloced);
 
-        if (options.opt_8bit) {                     /* sample waveform */
+        if (options->opt_8bit) {                     /* sample waveform */
             for (i = 0; i < length; i++)
                 mem_write8((int) ((sf_sample_data[sample->dwStart + i] >> 8) * vol) ^ 0x80, mem, mem_size, mem_alloced);
         }
@@ -2352,7 +2352,7 @@ static int grab_soundfont_sample(UnSF_Options options, char *name, int program, 
 }
 
 /* converts loaded SoundFont data */
-int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int wanted_velmin, int wanted_velmax,
+int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wanted_velmin, int wanted_velmax,
                    int sf_num_presets, sfPresetHeader *sf_presets,
                    sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
                    sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
@@ -2386,12 +2386,12 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
     int waiting_list_count;
 
     if (drum) {
-        if (options.opt_drum) {
-            wanted_patch = options.opt_drum_bank;
+        if (options->opt_drum) {
+            wanted_patch = options->opt_drum_bank;
             wanted_bank = 0;
         }
         else {
-            wanted_patch = options.opt_drum_bank;
+            wanted_patch = options->opt_drum_bank;
             wanted_bank = 128;
         }
         wanted_keymin = num;
@@ -2399,7 +2399,7 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
     }
     else {
         wanted_patch = num;
-        wanted_bank = options.opt_bank;
+        wanted_bank = options->opt_bank;
         wanted_keymin = 0;
         wanted_keymax = 127;
     }
@@ -2428,8 +2428,8 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                 i--;
             }
 
-            if (options.opt_verbose) printf("Grabbing %s%s -> %s\n", options.opt_right_channel ? "R " : "L ", s, name);
-            else if (!options.opt_no_write) {
+            if (options->opt_verbose) printf("Grabbing %s%s -> %s\n", options->opt_right_channel ? "R " : "L ", s, name);
+            else if (!options->opt_no_write) {
                 printf(".");
                 fflush(stdout);
             }
@@ -2587,13 +2587,13 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                             if (s[i] == 'L') sample->sfSampleType = LEFT_SAMPLE;
                             if (s[i] == 'R') sample->sfSampleType = RIGHT_SAMPLE;
 
-                            if (sample->sfSampleType == LEFT_SAMPLE && !options.opt_left_channel) continue;
-                            if (sample->sfSampleType == RIGHT_SAMPLE && !options.opt_right_channel) continue;
-                            if (sample->sfSampleType == MONO_SAMPLE && options.opt_right_channel) continue;
+                            if (sample->sfSampleType == LEFT_SAMPLE && !options->opt_left_channel) continue;
+                            if (sample->sfSampleType == RIGHT_SAMPLE && !options->opt_right_channel) continue;
+                            if (sample->sfSampleType == MONO_SAMPLE && options->opt_right_channel) continue;
 
                             /* prettify the sample name */
 
-                            if (options.opt_verbose) {
+                            if (options->opt_verbose) {
                                 int j = i - 3;
                                 if (j < 0) j = 0;
                                 while (j <= i) {
@@ -2624,14 +2624,14 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
 
                             if (sample->sfSampleType & 0x8000) {
                                 printf("\nThis SoundFont uses AWE32 ROM data in sample %s\n", s);
-                                if (options.opt_veryverbose)
+                                if (options->opt_veryverbose)
                                     printf("\n");
                                 return FALSE;
                             }
 
                             /* add this sample to the waiting list */
                             if (waiting_list_count < MAX_WAITING) {
-                                if (options.opt_veryverbose)
+                                if (options->opt_veryverbose)
                                     printf("  - sample %s\n", s);
 
                                 waiting_list[waiting_list_count].sample = sample;
@@ -2680,12 +2680,12 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                     fprintf(stderr, "\n%s patches were requested for an unknown velocity range.\n", name);
                     return FALSE;
                 }
-                if (options.opt_right_channel) pcount = vlist->right_patches[k];
+                if (options->opt_right_channel) pcount = vlist->right_patches[k];
                 else pcount = vlist->left_patches[k] + vlist->mono_patches[k];
                 if (pcount != waiting_list_count) {
                     fprintf(stderr, "\nFor %sinstrument %s %s found %d samples when there should be %d samples.\n",
-                            options.opt_header ? "header of " : "", name,
-                            options.opt_left_channel ? "left/mono" : "right",
+                            options->opt_header ? "header of " : "", name,
+                            options->opt_left_channel ? "left/mono" : "right",
                             waiting_list_count, pcount);
                     fprintf(stderr, "\tkeymin=%d keymax=%d patch=%d bank=%d, velmin=%d, velmax=%d\n",
                             wanted_keymin, wanted_keymax, wanted_patch, wanted_bank,
@@ -2696,7 +2696,7 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                             vlist->mono_patches[k]);
                     return FALSE;
                 }
-                if (options.opt_verbose && vlist->other_patches[k]) {
+                if (options->opt_verbose && vlist->other_patches[k]) {
                     fprintf(stderr, "\nFor instrument %s found %d samples in unknown channel.\n",
                             name, vlist->other_patches[k]);
                 }
@@ -2714,7 +2714,7 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
                         name, drum ? wanted_patch : wanted_bank, drum ? wanted_keymin : wanted_patch);
                 return FALSE;
             }
-            if (options.opt_veryverbose)
+            if (options->opt_veryverbose)
                 printf("\n");
 
             return (waiting_list_count > 0);
@@ -2724,7 +2724,7 @@ int grab_soundfont(UnSF_Options options, int num, int drum, char *name, int want
     return FALSE;
 }
 
-static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetHeader *sf_presets,
+static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPresetHeader *sf_presets,
                              sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
                              sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
                              sfGenList *sf_instrument_generators, sfSample *sf_samples, short *sf_sample_data,
@@ -2752,9 +2752,9 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                     vlist = sample_bank->voice_velocity[i][j];
                     if (vlist) velcount = vlist->range_count;
                     else velcount = 1;
-                    if (options.opt_small) velcount = 1;
-                    options.opt_bank = i;
-                    options.opt_header = TRUE;
+                    if (options->opt_small) velcount = 1;
+                    options->opt_bank = i;
+                    options->opt_header = TRUE;
                     for (k = 0; k < velcount; k++) {
                         if (vlist) {
                             wanted_velmin = vlist->velmin[k];
@@ -2766,8 +2766,8 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             wanted_velmax = 127;
                             right_patches = sample_bank->voice_samples_right[i][j];
                         }
-                        options.opt_left_channel = TRUE;
-                        options.opt_right_channel = FALSE;
+                        options->opt_left_channel = TRUE;
+                        options->opt_right_channel = FALSE;
                         if (!grab_soundfont(options, j, FALSE, sample_bank->voice_name[i][j], wanted_velmin,
                                             wanted_velmax, sf_num_presets, sf_presets, sf_preset_indexes,
                                             sf_preset_generators,
@@ -2781,12 +2781,12 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             abort_this_one = TRUE;
                             break;
                         }
-                        options.opt_header = FALSE;
+                        options->opt_header = FALSE;
                         if (abort_this_one) continue;
                         if (vlist) right_patches = vlist->right_patches[k];
-                        if (right_patches && !options.opt_mono) {
-                            options.opt_left_channel = FALSE;
-                            options.opt_right_channel = TRUE;
+                        if (right_patches && !options->opt_mono) {
+                            options->opt_left_channel = FALSE;
+                            options->opt_right_channel = TRUE;
                             if (!grab_soundfont(options, j, FALSE, sample_bank->voice_name[i][j], wanted_velmin, wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
@@ -2801,7 +2801,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             }
                         }
                     }
-                    if (abort_this_one || options.opt_no_write) continue;
+                    if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->tonebank_name[i], sample_bank->voice_name[i][j]);
                     if (!(pf = fopen(tmpname, "wb"))) {
                         fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
@@ -2828,9 +2828,9 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                     if (vlist) velcount = vlist->range_count;
                     else velcount = 1;
                     if (!vlist) fprintf(stderr, "Uh oh, drum #%d %s has no velocity list\n", i, sample_bank->drumset_name[i]);
-                    if (options.opt_small) velcount = 1;
-                    options.opt_drum_bank = i;
-                    options.opt_header = TRUE;
+                    if (options->opt_small) velcount = 1;
+                    options->opt_drum_bank = i;
+                    options->opt_header = TRUE;
                     for (k = 0; k < velcount; k++) {
                         if (vlist) {
                             wanted_velmin = vlist->velmin[k];
@@ -2842,8 +2842,8 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             wanted_velmax = 127;
                             right_patches = sample_bank->drum_samples_right[i][j];
                         }
-                        options.opt_left_channel = TRUE;
-                        options.opt_right_channel = FALSE;
+                        options->opt_left_channel = TRUE;
+                        options->opt_right_channel = FALSE;
                         if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin, wanted_velmax,
                                             sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                             sf_instruments, sf_instrument_indexes, sf_instrument_generators,
@@ -2856,12 +2856,12 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             abort_this_one = TRUE;
                             break;
                         }
-                        options.opt_header = FALSE;
+                        options->opt_header = FALSE;
                         if (abort_this_one) continue;
                         if (vlist) right_patches = vlist->right_patches[k];
-                        if (right_patches && !options.opt_mono) {
-                            options.opt_left_channel = FALSE;
-                            options.opt_right_channel = TRUE;
+                        if (right_patches && !options->opt_mono) {
+                            options->opt_left_channel = FALSE;
+                            options->opt_right_channel = TRUE;
                             if (!grab_soundfont(options, j, TRUE, sample_bank->drum_name[i][j], wanted_velmin, wanted_velmax,
                                                 sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,
                                                 sf_instruments, sf_instrument_indexes, sf_instrument_generators,
@@ -2876,7 +2876,7 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
                             }
                         }
                     }
-                    if (abort_this_one || options.opt_no_write) continue;
+                    if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->drumset_name[i], sample_bank->drum_name[i][j]);
                     if (!(pf = fopen(tmpname, "wb"))) {
                         fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
@@ -2898,17 +2898,17 @@ static void make_patch_files(UnSF_Options options, int sf_num_presets, sfPresetH
     free(mem);
 }
 
-static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
+static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
     int i, j, velcount, right_patches;
     VelocityRangeList *vlist;
 
-    if (options.opt_no_write) return;
+    if (options->opt_no_write) return;
 
     printf("Generating config file.\n");
 
     for (i = 0; i < 128; i++) {
         if (sample_bank->tonebank[i]) {
-            fprintf(options.cfg_fd, "\nbank %d #N %s\n", i, sample_bank->tonebank_name[i]);
+            fprintf(options->cfg_fd, "\nbank %d #N %s\n", i, sample_bank->tonebank_name[i]);
             for (j = 0; j < 128; j++) {
                 if (sample_bank->voice_name[i][j]) {
                     vlist = sample_bank->voice_velocity[i][j];
@@ -2917,25 +2917,25 @@ static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
                         right_patches = vlist->right_patches[0];
                     }
                     else {
-                        fprintf(options.cfg_fd, "\t# %d %s could not be extracted\n", j,
+                        fprintf(options->cfg_fd, "\t# %d %s could not be extracted\n", j,
                                 sample_bank->voice_name[i][j]);
                         continue;
                     }
-                    fprintf(options.cfg_fd, "\t%d %s/%s", j,
+                    fprintf(options->cfg_fd, "\t%d %s/%s", j,
                             sample_bank->tonebank_name[i], sample_bank->voice_name[i][j]);
-                    if (velcount > 1) fprintf(options.cfg_fd, "\t# %d velocity ranges", velcount);
+                    if (velcount > 1) fprintf(options->cfg_fd, "\t# %d velocity ranges", velcount);
                     if (right_patches) {
-                        if (velcount == 1) fprintf(options.cfg_fd, "\t# stereo");
-                        else fprintf(options.cfg_fd, ", stereo");
+                        if (velcount == 1) fprintf(options->cfg_fd, "\t# stereo");
+                        else fprintf(options->cfg_fd, ", stereo");
                     }
-                    fprintf(options.cfg_fd, "\n");
+                    fprintf(options->cfg_fd, "\n");
                 }
             }
         }
     }
     for (i = 0; i < 128; i++) {
         if (sample_bank->drumset_name[i]) {
-            fprintf(options.cfg_fd, "\ndrumset %d #N %s\n", i, sample_bank->drumset_short_name[i]);
+            fprintf(options->cfg_fd, "\ndrumset %d #N %s\n", i, sample_bank->drumset_short_name[i]);
             for (j = 0; j < 128; j++) {
                 if (sample_bank->drum_name[i][j]) {
                     vlist = sample_bank->drum_velocity[i][j];
@@ -2944,18 +2944,18 @@ static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
                         right_patches = vlist->right_patches[0];
                     }
                     else {
-                        fprintf(options.cfg_fd, "\t# %d %s could not be extracted\n", j,
+                        fprintf(options->cfg_fd, "\t# %d %s could not be extracted\n", j,
                                 sample_bank->drum_name[i][j]);
                         continue;
                     }
-                    fprintf(options.cfg_fd, "\t%d %s/%s", j,
+                    fprintf(options->cfg_fd, "\t%d %s/%s", j,
                             sample_bank->drumset_name[i], sample_bank->drum_name[i][j]);
-                    if (velcount > 1) fprintf(options.cfg_fd, "\t# %d velocity ranges", velcount);
+                    if (velcount > 1) fprintf(options->cfg_fd, "\t# %d velocity ranges", velcount);
                     if (right_patches) {
-                        if (velcount == 1) fprintf(options.cfg_fd, "\t# stereo");
-                        else fprintf(options.cfg_fd, ", stereo");
+                        if (velcount == 1) fprintf(options->cfg_fd, "\t# stereo");
+                        else fprintf(options->cfg_fd, ", stereo");
                     }
-                    fprintf(options.cfg_fd, "\n");
+                    fprintf(options->cfg_fd, "\n");
                 }
             }
         }
@@ -2964,7 +2964,7 @@ static void gen_config_file(UnSF_Options options, SampleBank *sample_bank) {
 
 
 /* creates all the required patch files */
-void convert_sf_to_gus(UnSF_Options options) {
+void convert_sf_to_gus(UnSF_Options *options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
@@ -2999,12 +2999,12 @@ void convert_sf_to_gus(UnSF_Options options) {
 
     SampleBank sample_bank;
 
-    if (options.opt_verbose)
-        printf("\nReading %s\n\n", options.opt_soundfont);
+    if (options->opt_verbose)
+        printf("\nReading %s\n\n", options->opt_soundfont);
     else
-        printf("Reading %s\n", options.opt_soundfont);
+        printf("Reading %s\n", options->opt_soundfont);
 
-    f = fopen(options.opt_soundfont, "rb");
+    f = fopen(options->opt_soundfont, "rb");
     if (!f) {
         fprintf(stderr, "Error opening file\n");
         err = 1;
@@ -3060,31 +3060,31 @@ void convert_sf_to_gus(UnSF_Options options) {
                                     break;
 
                                 case CID_INAM:
-                                    print_sf_string(options, f, "Bank name:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "Bank name:", options->opt_no_write, &sample_bank);
                                     break;
 
                                 case CID_irom:
-                                    print_sf_string(options, f, "ROM name:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "ROM name:", options->opt_no_write, &sample_bank);
                                     break;
 
                                 case CID_ICRD:
-                                    print_sf_string(options, f, "Date:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "Date:", options->opt_no_write, &sample_bank);
                                     break;
 
                                 case CID_IENG:
-                                    print_sf_string(options, f, "Made by:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "Made by:", options->opt_no_write, &sample_bank);
                                     break;
 
                                 case CID_IPRD:
-                                    print_sf_string(options, f, "Target:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "Target:", options->opt_no_write, &sample_bank);
                                     break;
 
                                 case CID_ICOP:
-                                    print_sf_string(options, f, "Copyright:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "Copyright:", options->opt_no_write, &sample_bank);
                                     break;
 
                                 case CID_ISFT:
-                                    print_sf_string(options, f, "Tools:", options.opt_no_write, &sample_bank);
+                                    print_sf_string(options, f, "Tools:", options->opt_no_write, &sample_bank);
                                     break;
                             }
 
@@ -3281,7 +3281,7 @@ void convert_sf_to_gus(UnSF_Options options) {
             (!sf_instruments) || (!sf_instrument_indexes) ||
             (!sf_instrument_generators) || (!sf_samples)) BAD_SF();
 
-        if (options.opt_verbose)
+        if (options->opt_verbose)
             printf("\n");
 
         grab_soundfont_banks(options, sf_num_presets, sf_presets, sf_preset_indexes, sf_preset_generators,

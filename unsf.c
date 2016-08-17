@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
 
     options.opt_soundfont = argv[optind];
 
-    convert_sf_to_gus(options);
+    convert_sf_to_gus(&options);
 
     if (!options.opt_no_write) fclose(options.cfg_fd);
 
