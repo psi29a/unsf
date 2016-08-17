@@ -1,7 +1,7 @@
 UnSF
 ====
 
-[![CC0 License](https://img.shields.io/badge/license-cc0-blue.svg)](https://creativecommons.org/publicdomain/zero/1.0/) [![Build Status](https://img.shields.io/travis/psi29a/unsf.svg)](https://travis-ci.org/psi29a/unsf)
+[![CC0 License](https://img.shields.io/badge/license-cc0-blue.svg)](https://creativecommons.org/publicdomain/zero/1.0/) [![Build Status](https://img.shields.io/travis/psi29a/unsf.svg)](https://travis-ci.org/psi29a/unsf) [![Coverity Status](https://img.shields.io/coverity/scan/9902.svg)](https://scan.coverity.com/projects/psi29a-unsf)
 
 
 UnSF is a tool to convert SoundFont (sf2) files into GUS patches.  

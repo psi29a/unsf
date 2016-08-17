@@ -35,3 +35,7 @@
 *.su
 
 .idea/
+
+unsf
+test.cfg
+*.cfg
