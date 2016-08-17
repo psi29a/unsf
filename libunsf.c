@@ -3294,6 +3294,20 @@ void convert_sf_to_gus(UnSF_Options options) {
         gen_config_file(options, &sample_bank);
     }
 
+    /* cleaning up after strdup */
+    for (i = 0; i < 128; i++) {
+        if (sample_bank.tonebank[i]) {
+            free(sample_bank.tonebank_name[i]);
+            sample_bank.tonebank_name[i] = NULL;
+        }
+        if (sample_bank.drumset_name[i]){
+            free(sample_bank.drumset_name[i]);
+            sample_bank.drumset_name[i] = NULL;
+
+            free(sample_bank.drumset_short_name[i]);
+            sample_bank.drumset_short_name[i] = NULL;
+        }
+    }
 
     /* oh, how polite I am... */
     if (sf_sample_data) {
