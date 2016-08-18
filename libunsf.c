@@ -2984,6 +2984,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
     int sf_num_samples = 0;
 
     SampleBank sample_bank;
+    memset(sample_bank.tonebank, 0, UNSF_RANGE);
     memset(sample_bank.tonebank_name, 0, UNSF_RANGE);
     memset(sample_bank.drumset_name, 0, UNSF_RANGE);
     memset(sample_bank.drumset_short_name, 0, UNSF_RANGE);
