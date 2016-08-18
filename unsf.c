@@ -63,7 +63,8 @@ int main(int argc, char *argv[]) {
     while ((c = getopt(argc, argv, "FVvnsdmM:D:")) > 0)
         switch (c) {
             case 'v':
-                options.opt_verbose = 1;
+                if (options.opt_verbose) options.opt_veryverbose = 1;
+                else options.opt_verbose = 1;
                 break;
             case 'n':
                 options.opt_no_write = 1;

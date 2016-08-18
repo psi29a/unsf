@@ -321,6 +321,12 @@ enum {
    goto getout;                                             \
 }
 
+#define BAD_ALLOCATE()                                      \
+{                                                           \
+   fprintf(stderr, "Error: cannot allocate memory\n");      \
+   exit(1);                                                 \
+}
+
 #define TO_HZ(abscents) (int)(8.176 * pow(2.0,(double)(abscents)/1200.0))
 #define TO_HZ20(abscents) (int)(20 * 8.176 * pow(2.0,(double)(abscents)/1200.0))
 
@@ -609,6 +615,7 @@ record_velocity_range(UnSF_Options *options, SampleBank *sample_bank, int drum, 
 
     if (!vlist) {
         vlist = (VelocityRangeList *) malloc(sizeof(VelocityRangeList));
+        if (!vlist) BAD_ALLOCATE();
         if (drum) sample_bank->drum_velocity[banknum][program] = vlist;
         else sample_bank->voice_velocity[banknum][program] = vlist;
         vlist->range_count = 0;
@@ -2718,8 +2725,8 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
     printf("Melodic patch files.\n");
     for (i = 0; i < UNSF_RANGE; i++) {
         abort_this_one = FALSE;
-        if (sample_bank->tonebank[i])
-            for (j = 0; j < UNSF_RANGE; j++)
+        if (sample_bank->tonebank[i]) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->voice_name[i][j]) {
                     abort_this_one = FALSE;
                     vlist = sample_bank->voice_velocity[i][j];
@@ -2790,12 +2797,14 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     }
                     fclose(pf);
                 }
+            }
+        }
     }
     printf("\nDrum patch files.\n");
     for (i = 0; i < UNSF_RANGE; i++) {
         abort_this_one = FALSE;
-        if (sample_bank->drumset_name[i])
-            for (j = 0; j < UNSF_RANGE; j++)
+        if (sample_bank->drumset_name[i]) {
+            for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->drum_name[i][j]) {
                     abort_this_one = FALSE;
                     vlist = sample_bank->drum_velocity[i][j];
@@ -2868,6 +2877,8 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     }
                     fclose(pf);
                 }
+            }
+        }
     }
     printf("\n");
 
@@ -2973,6 +2984,13 @@ void convert_sf_to_gus(UnSF_Options *options) {
     int sf_num_samples = 0;
 
     SampleBank sample_bank;
+    memset(sample_bank.tonebank_name, 0, UNSF_RANGE);
+    memset(sample_bank.drumset_name, 0, UNSF_RANGE);
+    memset(sample_bank.drumset_short_name, 0, UNSF_RANGE);
+    memset(sample_bank.voice_name, 0, UNSF_RANGE * UNSF_RANGE);
+    memset(sample_bank.voice_velocity, 0, UNSF_RANGE * UNSF_RANGE);
+    memset(sample_bank.drum_name, 0, UNSF_RANGE * UNSF_RANGE);
+    memset(sample_bank.drum_velocity, 0, UNSF_RANGE * UNSF_RANGE);
 
     if (options->opt_verbose)
         printf("\nReading %s\n\n", options->opt_soundfont);
@@ -3079,6 +3097,8 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_num_presets < 2) || (sf_presets)) BAD_SF();
 
                                     sf_presets = malloc(sizeof(sfPresetHeader) * sf_num_presets);
+                                    if (!sf_presets) BAD_ALLOCATE();
+
 
                                     for (i = 0; i < sf_num_presets; i++) {
                                         result = fread(sf_presets[i].achPresetName, 20, 1, f);
@@ -3103,6 +3123,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_preset_indexes)) BAD_SF();
 
                                     sf_preset_indexes = malloc(sizeof(sfPresetBag) * sf_num_preset_indexes);
+                                    if (!sf_preset_indexes) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_preset_indexes; i++) {
                                         sf_preset_indexes[i].wGenNdx = get16(f);
@@ -3118,6 +3139,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_preset_generators)) BAD_SF();
 
                                     sf_preset_generators = malloc(sizeof(sfGenList) * sf_num_preset_generators);
+                                    if (!sf_preset_generators) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_preset_generators; i++) {
                                         sf_preset_generators[i].sfGenOper = get16(f);
@@ -3133,6 +3155,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_num_instruments < 2) || (sf_instruments)) BAD_SF();
 
                                     sf_instruments = malloc(sizeof(sfInst) * sf_num_instruments);
+                                    if (!sf_instruments) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_instruments; i++) {
                                         result = fread(sf_instruments[i].achInstName, 20, 1, f);
@@ -3152,6 +3175,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_instrument_indexes)) BAD_SF();
 
                                     sf_instrument_indexes = malloc(sizeof(sfInstBag) * sf_num_instrument_indexes);
+                                    if (!sf_instrument_indexes) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_instrument_indexes; i++) {
                                         sf_instrument_indexes[i].wInstGenNdx = get16(f);
@@ -3167,6 +3191,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_instrument_generators)) BAD_SF();
 
                                     sf_instrument_generators = malloc(sizeof(sfGenList) * sf_num_instrument_generators);
+                                    if (!sf_instrument_generators) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_instrument_generators; i++) {
                                         sf_instrument_generators[i].sfGenOper = get16(f);
@@ -3182,6 +3207,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                         (sf_num_samples < 2) || (sf_samples)) BAD_SF();
 
                                     sf_samples = malloc(sizeof(sfSample) * sf_num_samples);
+                                    if (!sf_samples) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_samples; i++) {
                                         result = fread(sf_samples[i].achSampleName, 20, 1, f);
@@ -3216,6 +3242,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
 
                                     sf_sample_data_size = subchunk.size / 2;
                                     sf_sample_data = malloc(sizeof(short) * sf_sample_data_size);
+                                    if (!sf_sample_data) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_sample_data_size; i++)
                                         sf_sample_data[i] = get16(f);
@@ -3245,9 +3272,6 @@ void convert_sf_to_gus(UnSF_Options *options) {
     }
 
     getout:
-
-    if (f)
-        fclose(f);
 
     /* convert SoundFont to .pat format, and add it to the output datafile */
     if (!err) {
@@ -3340,4 +3364,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
         free(sf_samples);
         sf_samples = NULL;
     }
+
+    if (f)
+        fclose(f);
 }
