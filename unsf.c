@@ -35,28 +35,7 @@ int main(int argc, char *argv[]) {
     signed char melody_velocity_override[128][128];
     signed char drum_velocity_override[128][128];
 
-    /*
-    typedef struct UnSF_Options
-    {
-        int opt_8bit = 0;
-        int opt_verbose = 0;
-        int opt_veryverbose = 0;
-        int opt_bank = 0;
-        int opt_drum_bank = 0;
-        int opt_header = 0;
-        int opt_left_channel = 0;
-        int opt_right_channel = 0;
-        char *opt_soundfont = NULL;
-        int opt_small = 0;
-        int opt_drum = 0;
-        int opt_mono = 0;
-        int opt_no_write = 0;
-        int opt_adjust_sample_flags = 0;
-        int opt_adjust_volume = 1;
-        char basename[80];
-    } UnSF_Options; */
-
-    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1};
+    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL};
     memset(options.melody_velocity_override, -1, 128 * 128);
     memset(options.drum_velocity_override, -1, 128 * 128);
 
@@ -114,6 +93,8 @@ int main(int argc, char *argv[]) {
     inname = strrchr(argv[optind], '/');
     inname = inname ? inname + 1 : argv[optind];
 
+    options.basename = malloc(sizeof(char) * strlen(inname)+1);
+
     strcpy(options.basename, inname);
     inname = strrchr(options.basename, '.');
     if (inname) inname[0] = '\0';
@@ -133,6 +114,7 @@ int main(int argc, char *argv[]) {
 
     convert_sf_to_gus(&options);
 
+    free(options.basename);
     if (!options.opt_no_write) fclose(options.cfg_fd);
 
     return 0;
