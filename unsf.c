@@ -111,7 +111,10 @@ int main(int argc, char *argv[]) {
     strcpy(cfgname, options.basename);
     strcat(cfgname, ".cfg");
     if (!options.opt_no_write) {
-        if (!(options.cfg_fd = fopen(cfgname, "wb"))) return 1;
+        if (!(options.cfg_fd = fopen(cfgname, "wb"))) {
+            free(options.basename);
+            return 1;
+        }
     }
 
     options.opt_soundfont = argv[optind];
