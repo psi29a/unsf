@@ -3083,7 +3083,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            if (!(errno = fseek(f, subchunk.end, SEEK_SET)))
+                            if ((errno = fseek(f, subchunk.end, SEEK_SET)))
                                 printf("\nError code for fseek is: %d\n", errno);
                             break;
 
@@ -3231,7 +3231,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            if (!(errno = fseek(f, subchunk.end, SEEK_SET)))
+                            if ((errno = fseek(f, subchunk.end, SEEK_SET)))
                                 printf("\nError code for fseek is: %d\n", errno);
                             break;
 
@@ -3254,13 +3254,13 @@ void convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            if (!(errno = fseek(f, subchunk.end, SEEK_SET)))
+                            if ((errno = fseek(f, subchunk.end, SEEK_SET)))
                                 printf("\nError code for fseek is: %d\n", errno);
                             break;
 
                         default:
                             /* unrecognised chunk */
-                            if (!(errno = fseek(f, chunk.end, SEEK_SET)))
+                            if ((errno = fseek(f, chunk.end, SEEK_SET)))
                                 printf("\nError code for fseek is: %d\n", errno);
                             break;
                     }
@@ -3269,7 +3269,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
 
             default:
                 /* not a list so we're not interested */
-                if (!(errno = fseek(f, chunk.end, SEEK_SET)))
+                if ((errno = fseek(f, chunk.end, SEEK_SET)))
                     printf("\nError code for fseek is: %d\n", errno);
                 break;
         }
