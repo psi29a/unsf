@@ -693,9 +693,6 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
         }
     }
 
-    keymin = 0;
-    keymax = 127;
-
     /* search for the desired preset */
     for (pnum = 0; pnum < sf_num_presets; pnum++) {
         int global_preset_layer, global_preset_velmin, global_preset_velmax, preset_velmin, preset_velmax;
@@ -859,8 +856,6 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                             keymax = preset_keymax;
                         }
                     }
-
-                    drumnum = keymin;
 
                     /* find what sample we should use */
                     if ((igen_count > 0) &&
@@ -1677,6 +1672,8 @@ static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     if (sf_meta->initialFilterFc < 1) val = 13500;
     else val = sf_meta->initialFilterFc;
 
+    if (val < 0 || val > 24000) val = 19192;
+
     if (sf_meta->modEnvToFilterFc /*&& sf_meta->initialFilterFc*/) {
         sp_meta->modEnvToFilterFc = pow(2.0, ((double) sf_meta->modEnvToFilterFc / 1200.0));
     } else sp_meta->modEnvToFilterFc = 0;
@@ -1690,7 +1687,6 @@ static void calc_cutoff(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     } else sp_meta->modEnvToPitch = 0;
 
     sp_meta->cutoff_freq = TO_HZ(val);
-    if (val < 0 || val > 24000) val = 19192;
 }
 
 #ifdef LFO_DEBUG
@@ -2717,7 +2713,6 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
 
     printf("Melodic patch files.\n");
     for (i = 0; i < UNSF_RANGE; i++) {
-        abort_this_one = FALSE;
         if (sample_bank->tonebank[i]) {
             for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->voice_name[i][j]) {
@@ -2754,7 +2749,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             break;
                         }
                         options->opt_header = FALSE;
-                        if (abort_this_one == TRUE) continue;
+                        if (abort_this_one) continue;
                         if (vlist) right_patches = vlist->right_patches[k];
                         if (right_patches && !options->opt_mono) {
                             options->opt_left_channel = FALSE;
@@ -2775,7 +2770,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             }
                         }
                     }
-                    if (abort_this_one == TRUE || options->opt_no_write) continue;
+                    if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->tonebank_name[i], sample_bank->voice_name[i][j]);
                     if (!(pf = fopen(tmpname, "wb"))) {
                         fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
@@ -2795,7 +2790,6 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
     }
     printf("\nDrum patch files.\n");
     for (i = 0; i < UNSF_RANGE; i++) {
-        abort_this_one = FALSE;
         if (sample_bank->drumset_name[i]) {
             for (j = 0; j < UNSF_RANGE; j++) {
                 if (sample_bank->drum_name[i][j]) {
@@ -2994,7 +2988,6 @@ void convert_sf_to_gus(UnSF_Options *options) {
     f = fopen(options->opt_soundfont, "rb");
     if (!f) {
         fprintf(stderr, "Error opening file\n");
-        errno = 1;
         return;
     }
 
