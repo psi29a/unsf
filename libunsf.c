@@ -2828,7 +2828,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             break;
                         }
                         options->opt_header = FALSE;
-                        if (abort_this_one == TRUE) continue;
+                        if (abort_this_one) continue;
                         if (vlist) right_patches = vlist->right_patches[k];
                         if (right_patches && !options->opt_mono) {
                             options->opt_left_channel = FALSE;
@@ -2849,7 +2849,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             }
                         }
                     }
-                    if (abort_this_one == TRUE|| options->opt_no_write) continue;
+                    if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->drumset_name[i], sample_bank->drum_name[i][j]);
                     if (!(pf = fopen(tmpname, "wb"))) {
                         fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
