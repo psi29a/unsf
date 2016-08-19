@@ -2955,7 +2955,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
     FILE *f;
     size_t result;
     int i;
-    int err = 0;
+    int errno = 0;
 
     /* SoundFont sample data */
     short *sf_sample_data = NULL;
@@ -3001,14 +3001,14 @@ void convert_sf_to_gus(UnSF_Options *options) {
     f = fopen(options->opt_soundfont, "rb");
     if (!f) {
         fprintf(stderr, "Error opening file\n");
-        err = 1;
+        errno = 1;
         return;
     }
 
     file.id = get32(f);
     if (file.id != CID_RIFF) {
         fprintf(stderr, "Error: bad SoundFont header\n");
-        err = 1;
+        errno = 1;
         goto getout;
     }
 
@@ -3017,7 +3017,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
     file.type = get32(f);
     if (file.type != CID_sfbk) {
         fprintf(stderr, "Error: bad SoundFont header\n");
-        err = 1;
+        errno = 1;
         goto getout;
     }
 
@@ -3047,7 +3047,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
                                     if (get16(f) < 2) {
                                         fprintf(stderr,
                                                 "Error: this is a SoundFont 1.x file, and I only understand version 2 (.sf2)\n");
-                                        err = 1;
+                                        errno = 1;
                                         goto getout;
                                     }
                                     get16(f);
@@ -3083,7 +3083,8 @@ void convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            fseek(f, subchunk.end, SEEK_SET);
+                            if (!(errno = fseek(f, subchunk.end, SEEK_SET)))
+                                printf("\nError code for fseek is: %d\n", errno);
                             break;
 
                         case CID_pdta:
@@ -3230,7 +3231,8 @@ void convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            fseek(f, subchunk.end, SEEK_SET);
+                            if (!(errno = fseek(f, subchunk.end, SEEK_SET)))
+                                printf("\nError code for fseek is: %d\n", errno);
                             break;
 
                         case CID_sdta:
@@ -3252,12 +3254,14 @@ void convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            fseek(f, subchunk.end, SEEK_SET);
+                            if (!(errno = fseek(f, subchunk.end, SEEK_SET)))
+                                printf("\nError code for fseek is: %d\n", errno);
                             break;
 
                         default:
                             /* unrecognised chunk */
-                            fseek(f, chunk.end, SEEK_SET);
+                            if (!(errno = fseek(f, chunk.end, SEEK_SET)))
+                                printf("\nError code for fseek is: %d\n", errno);
                             break;
                     }
                 }
@@ -3265,7 +3269,8 @@ void convert_sf_to_gus(UnSF_Options *options) {
 
             default:
                 /* not a list so we're not interested */
-                fseek(f, chunk.end, SEEK_SET);
+                if (!(errno = fseek(f, chunk.end, SEEK_SET)))
+                    printf("\nError code for fseek is: %d\n", errno);
                 break;
         }
 
@@ -3275,7 +3280,7 @@ void convert_sf_to_gus(UnSF_Options *options) {
     getout:
 
     /* convert SoundFont to .pat format, and add it to the output datafile */
-    if (!err) {
+    if (!errno) {
         if ((!sf_sample_data) || (!sf_presets) ||
             (!sf_preset_indexes) || (!sf_preset_generators) ||
             (!sf_instruments) || (!sf_instrument_indexes) ||
