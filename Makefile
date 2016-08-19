@@ -1,7 +1,7 @@
 unsf:
-	cc -Wall -std=c11 -g -O0 -c libunsf.c
+	$(CC) -Wall -std=c11 -g -O0 -c libunsf.c
 	ar -cvq libunsf.a libunsf.o
-	cc -g -O0 -o unsf unsf.c -L. -lunsf -lm
+	$(CC) -g -O0 -o unsf unsf.c -L. -lunsf -lm
 install: unsf
 	install unsf $(DESTDIR)/usr/bin/
 uninstall:
