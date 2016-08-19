@@ -1855,8 +1855,6 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
     int freq_scale;
     unsigned int sample_volume;
 
-    int debug_examples = 0;
-
     /* SoundFont parameters for the current sample */
     SF_Meta sf_meta;
     SP_Meta sp_meta;
@@ -2216,8 +2214,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         mem_write8(7, mem, mem_size, mem_alloced);                     /* balance = middle */
 
 
-        if (debug_examples < 0) {
-            debug_examples++;
+        if (options->opt_veryverbose) {
             printf("attack_vol_env=%d, hold_vol_env=%d, decay_vol_env=%d, release_vol_env=%d, sf_meta.delay=%d\n",
                    sf_meta.attack_vol_env, sf_meta.hold_vol_env, sf_meta.decay_vol_env, sf_meta.release_vol_env,
                    sf_meta.delay_vol_env);
@@ -2694,10 +2691,6 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                         name, drum ? wanted_patch : wanted_bank, drum ? wanted_keymin : wanted_patch);
                 return FALSE;
             }
-            if (options->opt_veryverbose)
-                printf("\n");
-
-            return (waiting_list_count > 0);
         }
     }
 
@@ -2761,7 +2754,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             break;
                         }
                         options->opt_header = FALSE;
-                        if (abort_this_one) continue;
+                        if (abort_this_one == TRUE) continue;
                         if (vlist) right_patches = vlist->right_patches[k];
                         if (right_patches && !options->opt_mono) {
                             options->opt_left_channel = FALSE;
@@ -2782,7 +2775,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             }
                         }
                     }
-                    if (abort_this_one || options->opt_no_write) continue;
+                    if (abort_this_one == TRUE || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->tonebank_name[i], sample_bank->voice_name[i][j]);
                     if (!(pf = fopen(tmpname, "wb"))) {
                         fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
@@ -2841,7 +2834,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             break;
                         }
                         options->opt_header = FALSE;
-                        if (abort_this_one) continue;
+                        if (abort_this_one == TRUE) continue;
                         if (vlist) right_patches = vlist->right_patches[k];
                         if (right_patches && !options->opt_mono) {
                             options->opt_left_channel = FALSE;
@@ -2862,7 +2855,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                             }
                         }
                     }
-                    if (abort_this_one || options->opt_no_write) continue;
+                    if (abort_this_one == TRUE|| options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->drumset_name[i], sample_bank->drum_name[i][j]);
                     if (!(pf = fopen(tmpname, "wb"))) {
                         fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
