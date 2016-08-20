@@ -656,7 +656,6 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                                 sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
                                 sfGenList *sf_instrument_generators, sfSample *sf_samples, SampleBank *sample_bank
 ) {
-    sfPresetHeader *pheader;
     sfPresetBag *pindex;
     sfGenList *pgen;
     sfInst *iheader;
@@ -698,11 +697,8 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
         int global_preset_layer, global_preset_velmin, global_preset_velmax, preset_velmin, preset_velmax;
         int global_preset_keymin, global_preset_keymax, preset_keymin, preset_keymax;
 
-        pheader = &sf_presets[pnum];
-
-
-        wanted_patch = pheader->wPreset;
-        wanted_bank = pheader->wBank;
+        wanted_patch = sf_presets[pnum].wPreset;
+        wanted_bank = sf_presets[pnum].wBank;
 
         if (wanted_bank == UNSF_RANGE || options->opt_drum) {
             drum = TRUE;
@@ -713,14 +709,15 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
         }
 
         /* find what substructures it uses */
-        pindex = &sf_preset_indexes[pheader->wPresetBagNdx];
-        pindex_count = pheader[1].wPresetBagNdx - pheader[0].wPresetBagNdx;
+        pindex = &sf_preset_indexes[sf_presets[pnum].wPresetBagNdx];
+
+        pindex_count = sf_presets[pnum+1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
 
         if (pindex_count < 1)
             continue;
 
         /* prettify the preset name */
-        s = getname(pheader->achPresetName);
+        s = getname(sf_presets[pnum].achPresetName);
 
         if (drum) {
             if (!sample_bank->drumset_name[options->opt_drum_bank]) {
@@ -866,7 +863,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
                         /* sample->wSampleLink is the link?? */
                         /* lsample = &sf_samples[sample->wSampleLink] */
-                        if (sample->sfSampleType & LINKED_SAMPLE) {
+                        if (sample->sfSampleType & LINKED_SAMPLE && options->opt_verbose) {
                             printf("linked sample: link is %d\n", sample->wSampleLink);
                         }
 
@@ -881,7 +878,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                         /* prettify the sample name */
                         s = getname(sample->achSampleName);
 
-                        if (sample->sfSampleType & 0x8000) {
+                        if (sample->sfSampleType & 0x8000 && options->opt_verbose) {
                             printf("This SoundFont uses AWE32 ROM data in sample %s\n", s);
                             if (options->opt_veryverbose)
                                 printf("\n");
@@ -930,7 +927,8 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
     int i, rcode, tonebank_count = 0;
     char tmpname[80];
 
-    printf("Making bank directories.\n");
+    if (options->opt_verbose)
+        printf("Making bank directories.\n");
 
     for (i = 0; i < UNSF_RANGE; i++) if (sample_bank->tonebank[i]) tonebank_count++;
 
@@ -1123,9 +1121,11 @@ static void mem_write32(int val, unsigned char **mem, int *mem_size, int *mem_al
 }
 
 /* converts AWE32 (MIDI) pitches to GUS (frequency) format */
+/*
 static int key2freq(int note, int cents) {
     return pow(2.0, (float) (note * 100 + cents) / 1200.0) * 8175.800781;
 }
+ */
 
 /* converts the strange AWE32 timecent values to milliseconds */
 static int timecent2msec(int t) {
@@ -2336,7 +2336,6 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                    sfInst *sf_instruments, sfInstBag *sf_instrument_indexes,
                    sfGenList *sf_instrument_generators, sfSample *sf_samples, unsigned char **mem, int *mem_alloced,
                    int *mem_size, short *sf_sample_data, SampleBank *sample_bank) {
-    sfPresetHeader *pheader;
     sfPresetBag *pindex;
     sfGenList *pgen;
     sfInst *iheader;
@@ -2385,18 +2384,16 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
         int global_preset_layer, global_preset_velmin, global_preset_velmax, preset_velmin, preset_velmax;
         int global_preset_keymin, global_preset_keymax, preset_keymin, preset_keymax;
 
-        pheader = &sf_presets[pnum];
-
-        if ((pheader->wPreset == wanted_patch) && (pheader->wBank == wanted_bank)) {
+        if ((sf_presets[pnum].wPreset == wanted_patch) && (sf_presets[pnum].wBank == wanted_bank)) {
             /* find what substructures it uses */
-            pindex = &sf_preset_indexes[pheader->wPresetBagNdx];
-            pindex_count = pheader[1].wPresetBagNdx - pheader[0].wPresetBagNdx;
+            pindex = &sf_preset_indexes[sf_presets[pnum].wPresetBagNdx];
+            pindex_count = sf_presets[pnum+1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
 
             if (pindex_count < 1)
                 return FALSE;
 
             /* prettify the preset name */
-            s = pheader->achPresetName;
+            s = sf_presets[pnum].achPresetName;
 
             i = strlen(s) - 1;
             while ((i >= 0) && (isspace(s[i]))) {
@@ -2406,7 +2403,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
 
             if (options->opt_verbose)
                 printf("Grabbing %s%s -> %s\n", options->opt_right_channel ? "R " : "L ", s, name);
-            else if (!options->opt_no_write) {
+            else if (!options->opt_no_write && options->opt_verbose) {
                 printf(".");
                 fflush(stdout);
             }
@@ -2582,14 +2579,10 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                                     j++;
                                 }
                                 if (j <= i) {
-                                    if (s[j] == 'R' && sample->sfSampleType != RIGHT_SAMPLE)
+                                    if (s[j] == 'R' && sample->sfSampleType != RIGHT_SAMPLE && options->opt_verbose)
                                         printf("Note that sample name %s is not a right sample\n", s);
-                                    //if (s[j] == 'R' && sample->sfSampleType == RIGHT_SAMPLE)
-                                    //	     printf("OK -- sample name %s is a right sample\n", s);
-                                    if (s[j] == 'L' && sample->sfSampleType != LEFT_SAMPLE)
+                                    if (s[j] == 'L' && sample->sfSampleType != LEFT_SAMPLE && options->opt_verbose)
                                         printf("Note that sample name %s is not a left sample\n", s);
-                                    //if (s[j] == 'L' && sample->sfSampleType == LEFT_SAMPLE)
-                                    //	     printf("OK -- sample name %s is a left sample\n", s);
                                 }
                             }
 
@@ -2598,7 +2591,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                                 i--;
                             }
 
-                            if (sample->sfSampleType & 0x8000) {
+                            if (sample->sfSampleType & 0x8000 && options->opt_verbose) {
                                 printf("\nThis SoundFont uses AWE32 ROM data in sample %s\n", s);
                                 if (options->opt_veryverbose)
                                     printf("\n");
@@ -2634,7 +2627,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
                 }
             }
 
-            if (waiting_room_full)
+            if (waiting_room_full && options->opt_verbose)
                 printf("Warning: too many layers in this instrument!\n");
 
             if (waiting_list_count > 0) {
@@ -2710,8 +2703,8 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
     int mem_size = 0;
     int mem_alloced = 0;
 
-
-    printf("Melodic patch files.\n");
+    if (options->opt_verbose)
+        printf("Melodic patch files.\n");
     for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->tonebank[i]) {
             for (j = 0; j < UNSF_RANGE; j++) {
@@ -2788,7 +2781,8 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
             }
         }
     }
-    printf("\nDrum patch files.\n");
+    if (options->opt_verbose)
+        printf("\nDrum patch files.\n");
     for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
             for (j = 0; j < UNSF_RANGE; j++) {
@@ -2867,7 +2861,8 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
             }
         }
     }
-    printf("\n");
+    if (options->opt_verbose)
+        printf("\n");
 
     /* clean up after outselves */
     free(mem);
@@ -2879,7 +2874,8 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
 
     if (options->opt_no_write) return;
 
-    printf("Generating config file.\n");
+    if (options->opt_verbose)
+        printf("Generating config file.\n");
 
     for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->tonebank[i]) {
@@ -2979,11 +2975,6 @@ void convert_sf_to_gus(UnSF_Options *options) {
     memset(sample_bank.voice_velocity, 0, UNSF_RANGE * UNSF_RANGE);
     memset(sample_bank.drum_name, 0, UNSF_RANGE * UNSF_RANGE);
     memset(sample_bank.drum_velocity, 0, UNSF_RANGE * UNSF_RANGE);
-
-    if (options->opt_verbose)
-        printf("\nReading %s\n\n", options->opt_soundfont);
-    else
-        printf("Reading %s\n", options->opt_soundfont);
 
     f = fopen(options->opt_soundfont, "rb");
     if (!f) {

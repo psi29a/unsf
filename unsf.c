@@ -119,10 +119,13 @@ int main(int argc, char *argv[]) {
 
     options.opt_soundfont = argv[optind];
 
+    printf("Reading %s\n", options.opt_soundfont);
     convert_sf_to_gus(&options);
 
     free(options.basename);
+    printf("Writing out %s\n", cfgname);
     if (!options.opt_no_write) fclose(options.cfg_fd);
+    printf("Finished!\n");
 
     return 0;
 }
