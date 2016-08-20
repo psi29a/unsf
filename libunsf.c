@@ -1,3 +1,18 @@
+/*
+ * libunsf is a library that can beused to break up sound fonts into
+ * GUS type patch files.
+ *
+ * license: cc0
+ *
+ * To the extent possible under law, the person who associated CC0 with
+ * unsf has waived all copyright and related or neighboring rights
+ * to unsf.
+ *
+ * You should have received a copy of the CC0 legalcode along with this
+ * work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+ *
+ */
+
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
@@ -710,8 +725,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
         /* find what substructures it uses */
         pindex = &sf_preset_indexes[sf_presets[pnum].wPresetBagNdx];
-
-        pindex_count = sf_presets[pnum+1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
+        pindex_count = sf_presets[pnum + 1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
 
         if (pindex_count < 1)
             continue;
@@ -2387,7 +2401,7 @@ int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wan
         if ((sf_presets[pnum].wPreset == wanted_patch) && (sf_presets[pnum].wBank == wanted_bank)) {
             /* find what substructures it uses */
             pindex = &sf_preset_indexes[sf_presets[pnum].wPresetBagNdx];
-            pindex_count = sf_presets[pnum+1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
+            pindex_count = sf_presets[pnum + 1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
 
             if (pindex_count < 1)
                 return FALSE;
