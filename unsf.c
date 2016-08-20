@@ -32,8 +32,6 @@ int main(int argc, char *argv[]) {
     char cfgname[80];
     char *inname;
     char *sep1, *sep2;
-    signed char melody_velocity_override[128][128];
-    signed char drum_velocity_override[128][128];
 
     UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL};
     memset(options.melody_velocity_override, -1, 128 * 128);
