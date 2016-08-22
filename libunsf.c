@@ -82,13 +82,13 @@ typedef struct RIFF_CHUNK {
 
 /* SoundFont preset headers */
 typedef struct sfPresetHeader {
-    char achPresetName[20];
     unsigned short wPreset;
     unsigned short wBank;
     unsigned short wPresetBagNdx;
-    unsigned long dwLibrary;
-    unsigned long dwGenre;
-    unsigned long dwMorphology;
+    unsigned int dwLibrary;
+    unsigned int dwGenre;
+    unsigned int dwMorphology;
+    char achPresetName[20];
 } sfPresetHeader;
 
 /* SoundFont preset indexes */
@@ -136,11 +136,11 @@ typedef struct sfInstBag {
 /* SoundFont sample headers */
 typedef struct sfSample {
     char achSampleName[20];
-    unsigned long dwStart;
-    unsigned long dwEnd;
-    unsigned long dwStartloop;
-    unsigned long dwEndloop;
-    unsigned long dwSampleRate;
+    unsigned int dwStart;
+    unsigned int dwEnd;
+    unsigned int dwStartloop;
+    unsigned int dwEndloop;
+    unsigned int dwSampleRate;
     unsigned char byOriginalKey;
     signed char chCorrection;
     unsigned short wSampleLink;
@@ -521,7 +521,7 @@ static int get16(FILE *f) {
 }
 
 
-/* reads a long from the input file (little endian) */
+/* reads a int from the input file (little endian) */
 static int get32(FILE *f) {
     int b1, b2, b3, b4;
 
@@ -1126,7 +1126,7 @@ static void mem_write16(int val, unsigned char **mem, int *mem_size, int *mem_al
     mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
 }
 
-/* writes a long to the memory buffer (little endian) */
+/* writes a int to the memory buffer (little endian) */
 static void mem_write32(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
     mem_write8(val & 0xFF, mem, mem_size, mem_alloced);
     mem_write8((val >> 8) & 0xFF, mem, mem_size, mem_alloced);
