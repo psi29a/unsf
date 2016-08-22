@@ -82,13 +82,13 @@ typedef struct RIFF_CHUNK {
 
 /* SoundFont preset headers */
 typedef struct sfPresetHeader {
+    char achPresetName[20];
     unsigned short wPreset;
     unsigned short wBank;
     unsigned short wPresetBagNdx;
     unsigned int dwLibrary;
     unsigned int dwGenre;
     unsigned int dwMorphology;
-    char achPresetName[20];
 } sfPresetHeader;
 
 /* SoundFont preset indexes */
@@ -725,7 +725,10 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
         /* find what substructures it uses */
         pindex = &sf_preset_indexes[sf_presets[pnum].wPresetBagNdx];
-        pindex_count = sf_presets[pnum + 1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
+
+        pindex_count = 0;
+        if (pnum < sf_num_presets - 1)
+            pindex_count = sf_presets[pnum + 1].wPresetBagNdx - sf_presets[pnum].wPresetBagNdx;
 
         if (pindex_count < 1)
             continue;
@@ -3091,7 +3094,6 @@ void convert_sf_to_gus(UnSF_Options *options) {
 
                                     sf_presets = malloc(sizeof(sfPresetHeader) * sf_num_presets);
                                     if (!sf_presets) BAD_ALLOCATE();
-
 
                                     for (i = 0; i < sf_num_presets; i++) {
                                         result = fread(sf_presets[i].achPresetName, 20, 1, f);
