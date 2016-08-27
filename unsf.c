@@ -31,9 +31,7 @@ int main(int argc, char *argv[]) {
     char *inname;
     char *sep1, *sep2;
 
-    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL};
-    memset(options.melody_velocity_override, -1, 128 * 128);
-    memset(options.drum_velocity_override, -1, 128 * 128);
+    UnSF_Options options = unsf_initialization();
 
     while ((c = getopt(argc, argv, "FVvnsdmM:D:")) > 0)
         switch (c) {
@@ -116,7 +114,7 @@ int main(int argc, char *argv[]) {
     options.opt_soundfont = argv[optind];
 
     printf("Reading %s\n", options.opt_soundfont);
-    convert_sf_to_gus(&options);
+    unsf_convert_sf_to_gus(&options);
 
     free(options.basename);
     printf("Writing out %s\n", cfgname);

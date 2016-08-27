@@ -57,75 +57,8 @@ typedef struct UnSF_Options
     FILE *cfg_fd;
 } UnSF_Options;
 
-/* SoundFont parameters for the current sample */
-typedef struct SF_Meta
-{
-    int mode;
-    int start, end;
-    int loop_start, loop_end;
-    int mod_env_to_pitch;
-    int sustain_mod_env;
-    int key, tune;
-    int pan;
-    int keyscale;
-    int keymin, keymax;
-    int velmin, velmax;
-    int delay_vol_env;
-    int attack_vol_env;
-    int hold_vol_env;
-    int decay_vol_env;
-    int release_vol_env;
-    int sustain_level;
-    int exclusiveClass;
-    int chorusEffectsSend;
-    int reverbEffectsSend;
-    int initialAttenuation;
-    int modLfoToPitch;
-    int vibLfoToPitch;
-    int velocity;
-    int keynum;
-    int keynumToModEnvHold;
-    int keynumToModEnvDecay;
-    int keynumToVolEnvHold;
-    int keynumToVolEnvDecay;
-    int modLfoToVolume;
-    int delayModLFO;
-    int freqModLFO;
-    int delayVibLFO;
-    int freqVibLFO;
-    int delayModEnv;
-    int attackModEnv;
-    int holdModEnv;
-    int decayModEnv;
-    int releaseModEnv;
-    int instrument_look_index;
-    int instrument_unused5;
-    int sample_look_index;
-    short initialFilterQ;
-    short initialFilterFc;
-    short modEnvToFilterFc;
-    short modLfoToFilterFc;
-} SF_Meta;
-
-typedef struct SP_Meta
-{
-    unsigned int volume;
-    int delayModLFO;
-    short resonance;
-    short modEnvToFilterFc;
-    short modLfoToFilterFc;
-    short modEnvToPitch;
-    short cutoff_freq;
-    int freq_center;
-    int vibrato_depth, vibrato_delay;
-    unsigned char vibrato_control_ratio, vibrato_sweep_increment;
-    int tremolo_depth;
-    unsigned char tremolo_phase_increment, tremolo_sweep_increment;
-    int lfo_depth;
-    short lfo_phase_increment;    /* lfo_phase_increment is actually frequency */
-} SP_Meta;
-
-UNSF_SYMBOL void convert_sf_to_gus(UnSF_Options *options);
+UNSF_SYMBOL UnSF_Options unsf_initialization();
+UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options);
 
 
 #endif //UNSF_LIBUNSF_H
