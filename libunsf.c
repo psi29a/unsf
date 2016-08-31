@@ -13,12 +13,15 @@
  *
  */
 
+#include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "libunsf.h"
@@ -44,8 +47,7 @@
 #define UNSF_RANGE 128
 
 /* SoundFont parameters for the current sample */
-typedef struct SF_Meta
-{
+typedef struct SF_Meta {
     int mode;
     int start, end;
     int loop_start, loop_end;
@@ -93,8 +95,7 @@ typedef struct SF_Meta
     short modLfoToFilterFc;
 } SF_Meta;
 
-typedef struct SP_Meta
-{
+typedef struct SP_Meta {
     unsigned int volume;
     int delayModLFO;
     short resonance;
@@ -1008,9 +1009,52 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
     return TRUE;
 }
 
+char *unsf_concat(char *s1, char *s2) {
+    size_t len1 = strlen(s1);
+    size_t len2 = strlen(s2);
+    char *result = malloc(len1 + len2 + 1);//+1 for the zero-terminator
+    // TODO: check for errors
+    memcpy(result, s1, len1);
+    memcpy(result + len1, s2, len2 + 1);//+1 to copy the null-terminator
+    return result;
+}
+
+int unsf_mkdir(char *dir, mode_t mode) {
+    assert(dir && *dir);
+    char *dup_dir = unsf_strdup(dir);
+    char *token;
+    char *path;
+    char *old_path;
+
+    /* get the first token */
+    token = strtok(dup_dir, "\\/");
+    path = unsf_concat(dir, "/");
+
+    /* walk through other tokens */
+    while( token != NULL ) {
+        if (mkdir(path, mode) == -1) {
+            if (errno != EEXIST) {
+                return -1;
+            }
+        }
+        token = strtok(NULL, "\\/");
+        if (token == NULL)
+            continue;
+        old_path = path;
+        path = unsf_concat(path, dir);
+        free(old_path);
+        old_path = path;
+        path = unsf_concat(path, "/");
+        free(old_path);
+    }
+    free(dup_dir);
+    return 0;
+}
+
 static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
     int i, rcode, tonebank_count = 0;
     char tmpname[80];
+    char *directory = NULL;
 
     if (options->opt_verbose)
         printf("Making bank directories.\n");
@@ -1024,23 +1068,33 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
                 sample_bank->tonebank_name[i] = unsf_strdup(tmpname);
             } else sample_bank->tonebank_name[i] = unsf_strdup(options->basename);
             if (options->opt_no_write) continue;
-            if ((rcode = access(sample_bank->tonebank_name[i], R_OK | W_OK | X_OK)))
-                rcode = mkdir(sample_bank->tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            directory = unsf_concat(options->output_directory, sample_bank->tonebank_name[i]);
+            if ((rcode = access(directory, R_OK | W_OK | X_OK))) {
+                rcode = unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            }
             if (rcode) {
-                fprintf(stderr, "Could not create directory %s\n", sample_bank->tonebank_name[i]);
+                fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", directory, rcode,
+                        strerror(rcode));
                 exit(1);
             }
+            free(directory);
+            directory = NULL;
         }
     }
+    directory = NULL;
     if (options->opt_no_write) return;
     for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
-            if ((rcode = access(sample_bank->drumset_name[i], R_OK | W_OK | X_OK)))
-                rcode = mkdir(sample_bank->drumset_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            directory = unsf_concat(options->output_directory, sample_bank->drumset_name[i]);
+            if ((rcode = access(directory, R_OK | W_OK | X_OK))) {
+                rcode = unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            }
             if (rcode) {
-                fprintf(stderr, "Could not create directory %s\n", sample_bank->drumset_name[i]);
+                fprintf(stderr, "Could not create directory %s\n", directory);
                 exit(1);
             }
+            free(directory);
+            directory = NULL;
         }
     }
 }
@@ -2778,6 +2832,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                              SampleBank *sample_bank) {
     int i, j, k, velcount, right_patches;
     char tmpname[80];
+    char *file_path;
     FILE *pf;
     VelocityRangeList *vlist;
     int abort_this_one;
@@ -2850,18 +2905,21 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     }
                     if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->tonebank_name[i], sample_bank->voice_name[i][j]);
-                    if (!(pf = fopen(tmpname, "wb"))) {
-                        fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
+                    file_path = unsf_concat(options->output_directory, tmpname);
+                    if (!(pf = fopen(file_path, "wb"))) {
+                        fprintf(stderr, "\nCould not open patch file %s\n", file_path);
                         if (sample_bank->voice_velocity[i][j]) free(sample_bank->voice_velocity[i][j]);
                         sample_bank->voice_velocity[i][j] = NULL;
                         continue;
                     }
                     if (fwrite(mem, 1, mem_size, pf) != mem_size) {
-                        fprintf(stderr, "\nCould not write to patch file %s\n", tmpname);
+                        fprintf(stderr, "\nCould not write to patch file %s\n", file_path);
                         if (sample_bank->voice_velocity[i][j]) free(sample_bank->voice_velocity[i][j]);
                         sample_bank->voice_velocity[i][j] = NULL;
                     }
                     fclose(pf);
+                    free(file_path);
+                    file_path = NULL;
                 }
             }
         }
@@ -2930,18 +2988,21 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     }
                     if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->drumset_name[i], sample_bank->drum_name[i][j]);
-                    if (!(pf = fopen(tmpname, "wb"))) {
-                        fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
+                    file_path = unsf_concat(options->output_directory, tmpname);
+                    if (!(pf = fopen(file_path, "wb"))) {
+                        fprintf(stderr, "\nCould not open patch file %s\n", file_path);
                         if (sample_bank->drum_velocity[i][j]) free(sample_bank->drum_velocity[i][j]);
                         sample_bank->drum_velocity[i][j] = NULL;
                         continue;
                     }
                     if (fwrite(mem, 1, mem_size, pf) != mem_size) {
-                        fprintf(stderr, "\nCould not write to patch file %s\n", tmpname);
+                        fprintf(stderr, "\nCould not write to patch file %s\n", file_path);
                         if (sample_bank->drum_velocity[i][j]) free(sample_bank->drum_velocity[i][j]);
                         sample_bank->drum_velocity[i][j] = NULL;
                     }
                     fclose(pf);
+                    free(file_path);
+                    file_path = NULL;
                 }
             }
         }
@@ -3023,7 +3084,26 @@ void unsf_convert_sf_to_gus(UnSF_Options *options) {
     FILE *f;
     size_t result;
     int i;
-    int errno = 0;
+    char *config_file_path;
+    char cfgname[80];
+
+    printf("Config dir: %s\n", options->output_directory);
+    unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    printf("Config dir: %s\n", options->output_directory);
+    strcpy(cfgname, options->basename);
+    strcat(cfgname, ".cfg");
+    config_file_path = unsf_concat(options->output_directory, cfgname);
+    printf("Config dir: %s\n", options->output_directory);
+    if (!options->opt_no_write) {
+        if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
+            free(options->basename);
+            printf("Couldn't open %s for writing.\n", config_file_path);
+            exit(1);
+        } else
+            printf("Opened %s for writing.\n", config_file_path);
+
+    }
+    free(config_file_path); config_file_path = NULL;
 
     /* SoundFont sample data */
     short *sf_sample_data = NULL;
@@ -3438,7 +3518,7 @@ void unsf_convert_sf_to_gus(UnSF_Options *options) {
 
 /* initialize option variables for use */
 UnSF_Options unsf_initialization() {
-    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL};
+    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL, "./"};
     memset(options.melody_velocity_override, -1, 128 * 128);
     memset(options.drum_velocity_override, -1, 128 * 128);
 

@@ -27,13 +27,12 @@ extern int optind, opterr, optopt;
 
 int main(int argc, char *argv[]) {
     int i, c;
-    char cfgname[80];
     char *inname;
     char *sep1, *sep2;
 
     UnSF_Options options = unsf_initialization();
 
-    while ((c = getopt(argc, argv, "FVvnsdmM:D:")) > 0)
+    while ((c = getopt(argc, argv, "FVvnsdmO:M:D:")) > 0)
         switch (c) {
             case 'v':
                 if (options.opt_verbose) options.opt_veryverbose = 1;
@@ -71,15 +70,18 @@ int main(int argc, char *argv[]) {
                     options.drum_velocity_override[atoi(optarg)][atoi(sep1 + 1)] = atoi(sep2 + 1);
                     break;
                 } /* if missing, fall through */
+            case 'O':
+                options.output_directory = optarg;
+                break;
             default:
-                fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] [-M <bank>:<instrument>=<layer>]\n"
-                        "  [-D <bank>:<instrument>=<layer>] <filename>\n");
+                fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] [-O <output directory>]\n"
+                        "[-M <bank>:<instrument>=<layer>] [-D <bank>:<instrument>=<layer>] <filename>\n");
                 return 1;
         }
 
     if (argc - optind != 1) {
-        fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] [-M <bank>:<instrument>=<layer>]\n"
-                "  [-D <bank>:<instrument>=<layer>] <filename>\n");
+        fprintf(stderr, "usage: unsf [-v] [-n] [-s] [-d] [-m] [-F] [-V] [-O <output directory>]\n"
+                "[-M <bank>:<instrument>=<layer>] [-D <bank>:<instrument>=<layer>] <filename>\n");
         exit(1);
     }
 
@@ -102,22 +104,15 @@ int main(int argc, char *argv[]) {
         else if (options.basename[i] == '#') options.basename[i] = '_';
     }
 
-    strcpy(cfgname, options.basename);
-    strcat(cfgname, ".cfg");
-    if (!options.opt_no_write) {
-        if (!(options.cfg_fd = fopen(cfgname, "wb"))) {
-            free(options.basename);
-            return 1;
-        }
-    }
 
     options.opt_soundfont = argv[optind];
 
     printf("Reading %s\n", options.opt_soundfont);
+    printf("Writing out to: %s\n", options.output_directory);
+
     unsf_convert_sf_to_gus(&options);
 
     free(options.basename);
-    printf("Writing out %s\n", cfgname);
     if (!options.opt_no_write) fclose(options.cfg_fd);
     printf("Finished!\n");
 
