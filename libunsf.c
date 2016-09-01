@@ -1028,12 +1028,13 @@ int unsf_mkdir(char *dir, mode_t mode) {
 
     /* get the first token */
     token = strtok(dup_dir, "\\/");
-    path = unsf_concat(dir, "/");
-
+    path = unsf_concat(token, "/");
     /* walk through other tokens */
     while( token != NULL ) {
         if (mkdir(path, mode) == -1) {
             if (errno != EEXIST) {
+                fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", path, errno,
+                        strerror(errno));
                 return -1;
             }
         }
@@ -1041,7 +1042,7 @@ int unsf_mkdir(char *dir, mode_t mode) {
         if (token == NULL)
             continue;
         old_path = path;
-        path = unsf_concat(path, dir);
+        path = unsf_concat(path, token);
         free(old_path);
         old_path = path;
         path = unsf_concat(path, "/");
@@ -3087,13 +3088,10 @@ void unsf_convert_sf_to_gus(UnSF_Options *options) {
     char *config_file_path;
     char cfgname[80];
 
-    printf("Config dir: %s\n", options->output_directory);
     unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    printf("Config dir: %s\n", options->output_directory);
     strcpy(cfgname, options->basename);
     strcat(cfgname, ".cfg");
     config_file_path = unsf_concat(options->output_directory, cfgname);
-    printf("Config dir: %s\n", options->output_directory);
     if (!options->opt_no_write) {
         if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
             free(options->basename);
