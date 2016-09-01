@@ -1048,6 +1048,7 @@ int unsf_mkdir(char *dir, mode_t mode) {
         path = unsf_concat(path, "/");
         free(old_path);
     }
+    free(path);
     free(dup_dir);
     return 0;
 }
