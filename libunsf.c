@@ -1012,8 +1012,11 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 char *unsf_concat(char *s1, char *s2) {
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
-    char *result = malloc(len1 + len2 + 1);//+1 for the zero-terminator
-    // TODO: check for errors
+    char *result = NULL;
+    if (!(result = malloc(len1 + len2 + 1))) { //+1 for the zero-terminator
+        fprintf(stderr, "Memory allocation failed with mem size %lu\n", len1 + len2 + 1);
+        exit(1);
+    }
     memcpy(result, s1, len1);
     memcpy(result + len1, s2, len2 + 1);//+1 to copy the null-terminator
     return result;
