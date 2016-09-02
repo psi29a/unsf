@@ -26,6 +26,21 @@
 
 #include "libunsf.h"
 
+#ifdef __MINGW32__
+#define strtok_r strtok_s
+#define mkdir(A, B) mkdir(A)
+#ifndef MINGW_HAS_SECURE_API
+// proto from /usr/x86_64-w64-mingw32/include/sec_api/string_s.h
+_CRTIMP char *__cdecl strtok_s(char *str, const char *delim, char **context);
+#endif /* MINGW_HAS_SECURE_API */
+#endif /* __MINGW32__ */
+
+#ifdef _MSC_VER
+#define strdup _strdup
+#define strtok_r strtok_s
+#define mkdir(A, B) mkdir(A)
+#endif
+
 #ifndef TRUE
 #define TRUE         -1
 #define FALSE        0
@@ -563,16 +578,6 @@ static double bend_coarse[UNSF_RANGE] = {
 };
 
 
-/* Function is non ISO standard */
-static char *unsf_strdup(const char *s) {
-    size_t size = strlen(s) + 1;
-    char *p = malloc(size);
-    if (p) {
-        memcpy(p, s, size);
-    }
-    return p;
-}
-
 /* reads a byte from the input file */
 static int get8(FILE *f) {
     return getc(f);
@@ -807,14 +812,14 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
         if (drum) {
             if (!sample_bank->drumset_name[options->opt_drum_bank]) {
-                sample_bank->drumset_short_name[options->opt_drum_bank] = unsf_strdup(s);
+                sample_bank->drumset_short_name[options->opt_drum_bank] = strdup(s);
                 sprintf(tmpname, "%s-%s", options->basename, s);
-                sample_bank->drumset_name[options->opt_drum_bank] = unsf_strdup(tmpname);
+                sample_bank->drumset_name[options->opt_drum_bank] = strdup(tmpname);
                 if (options->opt_verbose) printf("drumset #%d %s\n", options->opt_drum_bank, s);
             }
         } else {
             if (!sample_bank->voice_name[options->opt_bank][wanted_patch]) {
-                sample_bank->voice_name[options->opt_bank][wanted_patch] = unsf_strdup(s);
+                sample_bank->voice_name[options->opt_bank][wanted_patch] = strdup(s);
                 if (options->opt_verbose) printf("bank #%d voice #%d %s\n", options->opt_bank, wanted_patch, s);
                 sample_bank->tonebank[options->opt_bank] = TRUE;
             }
@@ -976,7 +981,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                             for (pool_num = keymin; pool_num <= keymax; pool_num++) {
                                 drumnum = pool_num;
                                 if (!sample_bank->drum_name[options->opt_drum_bank][drumnum]) {
-                                    sample_bank->drum_name[options->opt_drum_bank][drumnum] = unsf_strdup(s);
+                                    sample_bank->drum_name[options->opt_drum_bank][drumnum] = strdup(s);
                                     if (options->opt_verbose)
                                         printf("drumset #%d drum #%d %s\n", options->opt_drum_bank, drumnum, s);
                                 }
@@ -1014,7 +1019,7 @@ char *unsf_concat(char *s1, char *s2) {
     size_t len2 = strlen(s2);
     char *result = NULL;
     if (!(result = malloc(len1 + len2 + 1))) { //+1 for the zero-terminator
-        fprintf(stderr, "Memory allocation failed with mem size %lu\n", len1 + len2 + 1);
+        fprintf(stderr, "Memory allocation failed with mem size %lu\n", (long unsigned int) (len1 + len2 + 1));
         exit(1);
     }
     memcpy(result, s1, len1);
@@ -1024,13 +1029,14 @@ char *unsf_concat(char *s1, char *s2) {
 
 int unsf_mkdir(char *dir, mode_t mode) {
     assert(dir && *dir);
-    char *dup_dir = unsf_strdup(dir);
+    char *dup_dir = strdup(dir);
     char *token;
     char *path;
     char *old_path;
+    char *tok_thread;
 
     /* get the first token */
-    token = strtok(dup_dir, "\\/");
+    token = strtok_r(dup_dir, "\\/", &tok_thread);
     path = unsf_concat(token, "/");
     /* walk through other tokens */
     while( token != NULL ) {
@@ -1041,7 +1047,7 @@ int unsf_mkdir(char *dir, mode_t mode) {
                 return -1;
             }
         }
-        token = strtok(NULL, "\\/");
+        token = strtok_r(NULL, "\\/", &tok_thread);
         if (token == NULL)
             continue;
         old_path = path;
@@ -1070,8 +1076,8 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
         if (sample_bank->tonebank[i]) {
             if (tonebank_count > 1) {
                 sprintf(tmpname, "%s-B%d", options->basename, i);
-                sample_bank->tonebank_name[i] = unsf_strdup(tmpname);
-            } else sample_bank->tonebank_name[i] = unsf_strdup(options->basename);
+                sample_bank->tonebank_name[i] = strdup(tmpname);
+            } else sample_bank->tonebank_name[i] = strdup(options->basename);
             if (options->opt_no_write) continue;
             directory = unsf_concat(options->output_directory, sample_bank->tonebank_name[i]);
             if ((rcode = access(directory, R_OK | W_OK | X_OK))) {
@@ -3084,7 +3090,7 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
 
 
 /* creates all the required patch files */
-void unsf_convert_sf_to_gus(UnSF_Options *options) {
+UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
@@ -3519,7 +3525,7 @@ void unsf_convert_sf_to_gus(UnSF_Options *options) {
 }
 
 /* initialize option variables for use */
-UnSF_Options unsf_initialization() {
+UNSF_SYMBOL UnSF_Options unsf_initialization() {
     UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL, "./"};
     memset(options.melody_velocity_override, -1, 128 * 128);
     memset(options.drum_velocity_override, -1, 128 * 128);

@@ -1,5 +1,5 @@
 unsf:
-	$(CC) -Wall -std=c11 -g -O2 -c libunsf.c
+	$(CC) -Wall -std=gnu11 -g -O2 -c libunsf.c
 	ar -cvq libunsf.a libunsf.o
 	$(CC) -g -O0 -o unsf unsf.c -L. -lunsf -lm
 install: unsf

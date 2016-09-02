@@ -28,7 +28,7 @@ UnSF 1.1 (20160820)
  * Split unsf.c into unsf.c and libunsf.c so that the later can be used
   in other programs such as unsf.c
  * Fixed problems found by Coverity and Clang's static analyzer
- * Use custom strdup for use on systems where it doesn't exist
+ * Support MSVC, MINGW, GCC and Clang.
 
 UnSF 1.0 (20160105)
 -------------------
