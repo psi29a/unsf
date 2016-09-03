@@ -6,7 +6,7 @@
 /* ========== NOTE TO WINDOWS DEVELOPERS:
  * If you are compiling for Windows and will link to the static library
  * (libWildMidi.a with MinGW, or wildmidi_static.lib with MSVC, etc),
- * you must define DATADIVER_STATIC in your project. Otherwise dllimport
+ * you must define UNSF_STATIC in your project. Otherwise dllimport
  * will be assumed. */
 # if defined(UNSF_BUILD) && defined(DLL_EXPORT)		/* building library as a dll for windows */
 #  define UNSF_SYMBOL __declspec(dllexport)
