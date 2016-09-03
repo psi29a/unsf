@@ -1044,7 +1044,9 @@ int unsf_mkdir(char *dir, mode_t mode) {
             if (errno != EEXIST) {
                 fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", path, errno,
                         strerror(errno));
-                return -1;
+                free(path);
+                free(dup_dir);
+                exit(1);
             }
         }
         token = strtok_r(NULL, "\\/", &tok_thread);
@@ -1080,14 +1082,8 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
             } else sample_bank->tonebank_name[i] = strdup(options->basename);
             if (options->opt_no_write) continue;
             directory = unsf_concat(options->output_directory, sample_bank->tonebank_name[i]);
-            if ((rcode = access(directory, R_OK | W_OK | X_OK))) {
-                rcode = unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-            }
-            if (rcode) {
-                fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", directory, rcode,
-                        strerror(rcode));
-                exit(1);
-            }
+            if (access(directory, R_OK | W_OK | X_OK))
+                unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
             free(directory);
             directory = NULL;
         }
@@ -3095,13 +3091,16 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     FILE *f;
     size_t result;
     int i;
-    char *config_file_path;
-    char cfgname[80];
+    char *config_file_path = NULL;
+    char *old_config_file_path = NULL;
 
     unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    strcpy(cfgname, options->basename);
-    strcat(cfgname, ".cfg");
-    config_file_path = unsf_concat(options->output_directory, cfgname);
+
+    config_file_path = unsf_concat(options->output_directory, options->basename);
+    old_config_file_path = config_file_path;
+    config_file_path = unsf_concat(config_file_path, ".cfg");
+    free(old_config_file_path);
+
     if (!options->opt_no_write) {
         if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
             free(options->basename);
