@@ -13,15 +13,33 @@
  *
  */
 
+#include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "libunsf.h"
+
+#ifdef __MINGW32__
+#define strtok_r strtok_s
+#define mkdir(A, B) mkdir(A)
+#ifndef MINGW_HAS_SECURE_API
+// proto from /usr/x86_64-w64-mingw32/include/sec_api/string_s.h
+_CRTIMP char *__cdecl strtok_s(char *str, const char *delim, char **context);
+#endif /* MINGW_HAS_SECURE_API */
+#endif /* __MINGW32__ */
+
+#ifdef _MSC_VER
+#define strdup _strdup
+#define strtok_r strtok_s
+#define mkdir(A, B) mkdir(A)
+#endif
 
 #ifndef TRUE
 #define TRUE         -1
@@ -44,8 +62,7 @@
 #define UNSF_RANGE 128
 
 /* SoundFont parameters for the current sample */
-typedef struct SF_Meta
-{
+typedef struct SF_Meta {
     int mode;
     int start, end;
     int loop_start, loop_end;
@@ -93,8 +110,7 @@ typedef struct SF_Meta
     short modLfoToFilterFc;
 } SF_Meta;
 
-typedef struct SP_Meta
-{
+typedef struct SP_Meta {
     unsigned int volume;
     int delayModLFO;
     short resonance;
@@ -562,16 +578,6 @@ static double bend_coarse[UNSF_RANGE] = {
 };
 
 
-/* Function is non ISO standard */
-static char *unsf_strdup(const char *s) {
-    size_t size = strlen(s) + 1;
-    char *p = malloc(size);
-    if (p) {
-        memcpy(p, s, size);
-    }
-    return p;
-}
-
 /* reads a byte from the input file */
 static int get8(FILE *f) {
     return getc(f);
@@ -806,14 +812,14 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
         if (drum) {
             if (!sample_bank->drumset_name[options->opt_drum_bank]) {
-                sample_bank->drumset_short_name[options->opt_drum_bank] = unsf_strdup(s);
+                sample_bank->drumset_short_name[options->opt_drum_bank] = strdup(s);
                 sprintf(tmpname, "%s-%s", options->basename, s);
-                sample_bank->drumset_name[options->opt_drum_bank] = unsf_strdup(tmpname);
+                sample_bank->drumset_name[options->opt_drum_bank] = strdup(tmpname);
                 if (options->opt_verbose) printf("drumset #%d %s\n", options->opt_drum_bank, s);
             }
         } else {
             if (!sample_bank->voice_name[options->opt_bank][wanted_patch]) {
-                sample_bank->voice_name[options->opt_bank][wanted_patch] = unsf_strdup(s);
+                sample_bank->voice_name[options->opt_bank][wanted_patch] = strdup(s);
                 if (options->opt_verbose) printf("bank #%d voice #%d %s\n", options->opt_bank, wanted_patch, s);
                 sample_bank->tonebank[options->opt_bank] = TRUE;
             }
@@ -975,7 +981,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                             for (pool_num = keymin; pool_num <= keymax; pool_num++) {
                                 drumnum = pool_num;
                                 if (!sample_bank->drum_name[options->opt_drum_bank][drumnum]) {
-                                    sample_bank->drum_name[options->opt_drum_bank][drumnum] = unsf_strdup(s);
+                                    sample_bank->drum_name[options->opt_drum_bank][drumnum] = strdup(s);
                                     if (options->opt_verbose)
                                         printf("drumset #%d drum #%d %s\n", options->opt_drum_bank, drumnum, s);
                                 }
@@ -1008,9 +1014,60 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
     return TRUE;
 }
 
+char *unsf_concat(char *s1, char *s2) {
+    size_t len1 = strlen(s1);
+    size_t len2 = strlen(s2);
+    char *result = NULL;
+    if (!(result = malloc(len1 + len2 + 1))) { //+1 for the zero-terminator
+        fprintf(stderr, "Memory allocation failed with mem size %lu\n", (long unsigned int) (len1 + len2 + 1));
+        exit(1);
+    }
+    memcpy(result, s1, len1);
+    memcpy(result + len1, s2, len2 + 1);//+1 to copy the null-terminator
+    return result;
+}
+
+int unsf_mkdir(char *dir, mode_t mode) {
+    assert(dir && *dir);
+    char *dup_dir = strdup(dir);
+    char *token;
+    char *path;
+    char *old_path;
+    char *tok_thread;
+
+    /* get the first token */
+    token = strtok_r(dup_dir, "\\/", &tok_thread);
+    path = unsf_concat(token, "/");
+    /* walk through other tokens */
+    while( token != NULL ) {
+        if (mkdir(path, mode) == -1) {
+            if (errno != EEXIST) {
+                fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", path, errno,
+                        strerror(errno));
+                free(path);
+                free(dup_dir);
+                exit(1);
+            }
+        }
+        token = strtok_r(NULL, "\\/", &tok_thread);
+        if (token == NULL)
+            continue;
+        old_path = path;
+        path = unsf_concat(path, token);
+        free(old_path);
+        old_path = path;
+        path = unsf_concat(path, "/");
+        free(old_path);
+    }
+    free(path);
+    free(dup_dir);
+    return 0;
+}
+
 static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
     int i, rcode, tonebank_count = 0;
     char tmpname[80];
+    char *directory = NULL;
 
     if (options->opt_verbose)
         printf("Making bank directories.\n");
@@ -1021,26 +1078,30 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
         if (sample_bank->tonebank[i]) {
             if (tonebank_count > 1) {
                 sprintf(tmpname, "%s-B%d", options->basename, i);
-                sample_bank->tonebank_name[i] = unsf_strdup(tmpname);
-            } else sample_bank->tonebank_name[i] = unsf_strdup(options->basename);
+                sample_bank->tonebank_name[i] = strdup(tmpname);
+            } else sample_bank->tonebank_name[i] = strdup(options->basename);
             if (options->opt_no_write) continue;
-            if ((rcode = access(sample_bank->tonebank_name[i], R_OK | W_OK | X_OK)))
-                rcode = mkdir(sample_bank->tonebank_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-            if (rcode) {
-                fprintf(stderr, "Could not create directory %s\n", sample_bank->tonebank_name[i]);
-                exit(1);
-            }
+            directory = unsf_concat(options->output_directory, sample_bank->tonebank_name[i]);
+            if (access(directory, R_OK | W_OK | X_OK))
+                unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            free(directory);
+            directory = NULL;
         }
     }
+    directory = NULL;
     if (options->opt_no_write) return;
     for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
-            if ((rcode = access(sample_bank->drumset_name[i], R_OK | W_OK | X_OK)))
-                rcode = mkdir(sample_bank->drumset_name[i], S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            directory = unsf_concat(options->output_directory, sample_bank->drumset_name[i]);
+            if ((rcode = access(directory, R_OK | W_OK | X_OK))) {
+                rcode = unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            }
             if (rcode) {
-                fprintf(stderr, "Could not create directory %s\n", sample_bank->drumset_name[i]);
+                fprintf(stderr, "Could not create directory %s\n", directory);
                 exit(1);
             }
+            free(directory);
+            directory = NULL;
         }
     }
 }
@@ -2778,6 +2839,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                              SampleBank *sample_bank) {
     int i, j, k, velcount, right_patches;
     char tmpname[80];
+    char *file_path;
     FILE *pf;
     VelocityRangeList *vlist;
     int abort_this_one;
@@ -2850,18 +2912,21 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     }
                     if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->tonebank_name[i], sample_bank->voice_name[i][j]);
-                    if (!(pf = fopen(tmpname, "wb"))) {
-                        fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
+                    file_path = unsf_concat(options->output_directory, tmpname);
+                    if (!(pf = fopen(file_path, "wb"))) {
+                        fprintf(stderr, "\nCould not open patch file %s\n", file_path);
                         if (sample_bank->voice_velocity[i][j]) free(sample_bank->voice_velocity[i][j]);
                         sample_bank->voice_velocity[i][j] = NULL;
                         continue;
                     }
                     if (fwrite(mem, 1, mem_size, pf) != mem_size) {
-                        fprintf(stderr, "\nCould not write to patch file %s\n", tmpname);
+                        fprintf(stderr, "\nCould not write to patch file %s\n", file_path);
                         if (sample_bank->voice_velocity[i][j]) free(sample_bank->voice_velocity[i][j]);
                         sample_bank->voice_velocity[i][j] = NULL;
                     }
                     fclose(pf);
+                    free(file_path);
+                    file_path = NULL;
                 }
             }
         }
@@ -2930,18 +2995,21 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                     }
                     if (abort_this_one || options->opt_no_write) continue;
                     sprintf(tmpname, "%s/%s.pat", sample_bank->drumset_name[i], sample_bank->drum_name[i][j]);
-                    if (!(pf = fopen(tmpname, "wb"))) {
-                        fprintf(stderr, "\nCould not open patch file %s\n", tmpname);
+                    file_path = unsf_concat(options->output_directory, tmpname);
+                    if (!(pf = fopen(file_path, "wb"))) {
+                        fprintf(stderr, "\nCould not open patch file %s\n", file_path);
                         if (sample_bank->drum_velocity[i][j]) free(sample_bank->drum_velocity[i][j]);
                         sample_bank->drum_velocity[i][j] = NULL;
                         continue;
                     }
                     if (fwrite(mem, 1, mem_size, pf) != mem_size) {
-                        fprintf(stderr, "\nCould not write to patch file %s\n", tmpname);
+                        fprintf(stderr, "\nCould not write to patch file %s\n", file_path);
                         if (sample_bank->drum_velocity[i][j]) free(sample_bank->drum_velocity[i][j]);
                         sample_bank->drum_velocity[i][j] = NULL;
                     }
                     fclose(pf);
+                    free(file_path);
+                    file_path = NULL;
                 }
             }
         }
@@ -3018,12 +3086,31 @@ static void gen_config_file(UnSF_Options *options, SampleBank *sample_bank) {
 
 
 /* creates all the required patch files */
-void unsf_convert_sf_to_gus(UnSF_Options *options) {
+UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
     int i;
-    int errno = 0;
+    char *config_file_path = NULL;
+    char *old_config_file_path = NULL;
+
+    unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+
+    config_file_path = unsf_concat(options->output_directory, options->basename);
+    old_config_file_path = config_file_path;
+    config_file_path = unsf_concat(config_file_path, ".cfg");
+    free(old_config_file_path);
+
+    if (!options->opt_no_write) {
+        if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
+            free(options->basename);
+            printf("Couldn't open %s for writing.\n", config_file_path);
+            exit(1);
+        } else
+            printf("Opened %s for writing.\n", config_file_path);
+
+    }
+    free(config_file_path); config_file_path = NULL;
 
     /* SoundFont sample data */
     short *sf_sample_data = NULL;
@@ -3437,8 +3524,8 @@ void unsf_convert_sf_to_gus(UnSF_Options *options) {
 }
 
 /* initialize option variables for use */
-UnSF_Options unsf_initialization() {
-    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL};
+UNSF_SYMBOL UnSF_Options unsf_initialization() {
+    UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL, "./"};
     memset(options.melody_velocity_override, -1, 128 * 128);
     memset(options.drum_velocity_override, -1, 128 * 128);
 
