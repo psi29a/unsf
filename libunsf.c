@@ -2854,7 +2854,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                              SampleBank *sample_bank) {
     int i, j, k, velcount, right_patches;
     char tmpname[80];
-    char *file_path;
+    char *file_path = NULL;
     FILE *pf;
     VelocityRangeList *vlist;
     int abort_this_one;
@@ -2932,6 +2932,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                         fprintf(stderr, "\nCould not open patch file %s\n", file_path);
                         if (sample_bank->voice_velocity[i][j]) free(sample_bank->voice_velocity[i][j]);
                         sample_bank->voice_velocity[i][j] = NULL;
+                        free(file_path); file_path = NULL;
                         continue;
                     }
                     if (fwrite(mem, 1, mem_size, pf) != mem_size) {
@@ -3015,6 +3016,7 @@ static void make_patch_files(UnSF_Options *options, int sf_num_presets, sfPreset
                         fprintf(stderr, "\nCould not open patch file %s\n", file_path);
                         if (sample_bank->drum_velocity[i][j]) free(sample_bank->drum_velocity[i][j]);
                         sample_bank->drum_velocity[i][j] = NULL;
+                        free(file_path); file_path = NULL;
                         continue;
                     }
                     if (fwrite(mem, 1, mem_size, pf) != mem_size) {
