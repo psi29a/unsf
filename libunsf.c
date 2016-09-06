@@ -39,14 +39,21 @@
 #define strtok_r unsf_strtok_r
 #include "strtok_r.h"
 #endif
+#ifndef __MINGW32__ /* #ifdef _MSC_VER */
+typedef unsigned short mode_t;
+#endif
 #define mkdir(A, B) _mkdir(A)
-#ifndef S_IRGRP
+#define access _access
+#ifndef S_IRGRP /* FIXME */
 #define S_IRGRP 0
 #define S_IROTH 0
 #define S_IXOTH 0
 #define S_IXGRP 0
 #endif
-#ifndef F_OK
+#ifndef S_IRWXU /* FIXME */
+#define S_IRWXU 0
+#endif
+#ifndef F_OK    /* FIXME */
 #define R_OK    4
 #define W_OK    2
 #define F_OK    0
@@ -1042,12 +1049,15 @@ static char *unsf_concat(const char *s1, const char *s2) {
 }
 
 static int unsf_mkdir(char *dir, mode_t mode) {
-    assert(dir && *dir);
-    char *dup_dir = strdup(dir);
+    char *dup_dir;
     char *token;
     char *path;
     char *old_path;
     char *tok_thread;
+
+    assert(dir && *dir);
+
+    dup_dir = strdup(dir);
 
     /* get the first token */
     token = strtok_r(dup_dir, "\\/", &tok_thread);
@@ -3109,24 +3119,6 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     char *config_file_path = NULL;
     char *old_config_file_path = NULL;
 
-    unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-
-    config_file_path = unsf_concat(options->output_directory, options->basename);
-    old_config_file_path = config_file_path;
-    config_file_path = unsf_concat(config_file_path, ".cfg");
-    free(old_config_file_path);
-
-    if (!options->opt_no_write) {
-        if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
-            free(options->basename);
-            printf("Couldn't open %s for writing.\n", config_file_path);
-            exit(1);
-        } else
-            printf("Opened %s for writing.\n", config_file_path);
-
-    }
-    free(config_file_path); config_file_path = NULL;
-
     /* SoundFont sample data */
     short *sf_sample_data = NULL;
     int sf_sample_data_size = 0;
@@ -3154,6 +3146,26 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     int sf_num_samples = 0;
 
     SampleBank sample_bank;
+
+
+    unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+
+    config_file_path = unsf_concat(options->output_directory, options->basename);
+    old_config_file_path = config_file_path;
+    config_file_path = unsf_concat(config_file_path, ".cfg");
+    free(old_config_file_path);
+
+    if (!options->opt_no_write) {
+        if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
+            free(options->basename);
+            printf("Couldn't open %s for writing.\n", config_file_path);
+            exit(1);
+        } else
+            printf("Opened %s for writing.\n", config_file_path);
+
+    }
+    free(config_file_path); config_file_path = NULL;
+
     memset(sample_bank.tonebank, 0, UNSF_RANGE);
     memset(sample_bank.tonebank_name, 0, UNSF_RANGE);
     memset(sample_bank.drumset_name, 0, UNSF_RANGE);
