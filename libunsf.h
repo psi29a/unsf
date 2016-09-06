@@ -5,7 +5,7 @@
 #if defined _WIN32 || defined __CYGWIN__
 /* ========== NOTE TO WINDOWS DEVELOPERS:
  * If you are compiling for Windows and will link to the static library
- * (libWildMidi.a with MinGW, or wildmidi_static.lib with MSVC, etc),
+ * (libunsf.a with MinGW, or unsf_static.lib with MSVC, etc),
  * you must define UNSF_STATIC in your project. Otherwise dllimport
  * will be assumed. */
 # if defined(UNSF_BUILD) && defined(DLL_EXPORT)		/* building library as a dll for windows */
