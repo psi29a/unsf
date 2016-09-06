@@ -22,24 +22,38 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "libunsf.h"
 
-#ifdef __MINGW32__
-#define strtok_r strtok_s
-#define mkdir(A, B) mkdir(A)
-#ifndef MINGW_HAS_SECURE_API
-// proto from /usr/x86_64-w64-mingw32/include/sec_api/string_s.h
-_CRTIMP char *__cdecl strtok_s(char *str, const char *delim, char **context);
-#endif /* MINGW_HAS_SECURE_API */
-#endif /* __MINGW32__ */
-
-#ifdef _MSC_VER
+#ifdef _WIN32
 #define strdup _strdup
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #define strtok_r strtok_s
-#define mkdir(A, B) mkdir(A)
+#else
+#define strtok_r unsf_strtok_r
+#include "strtok_r.h"
 #endif
+#define mkdir(A, B) _mkdir(A)
+#ifndef S_IRGRP
+#define S_IRGRP 0
+#define S_IROTH 0
+#define S_IXOTH 0
+#define S_IXGRP 0
+#endif
+#ifndef F_OK
+#define R_OK    4
+#define W_OK    2
+#define F_OK    0
+#endif
+#undef  X_OK /* Note that X_OK (0x01) must not be used in windows code */
+#define X_OK    0
+#endif /* _WIN32 */
 
 #ifndef TRUE
 #define TRUE         1
