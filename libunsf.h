@@ -62,4 +62,4 @@ UNSF_SYMBOL UnSF_Options unsf_initialization();
 UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options);
 
 
-#endif //UNSF_LIBUNSF_H
+#endif /* UNSF_LIBUNSF_H */

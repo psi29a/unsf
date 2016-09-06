@@ -1032,12 +1032,12 @@ static char *unsf_concat(char *s1, char *s2) {
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
     char *result = NULL;
-    if (!(result = malloc(len1 + len2 + 1))) { //+1 for the zero-terminator
+    if (!(result = malloc(len1 + len2 + 1))) { /* +1 for the zero-terminator */
         fprintf(stderr, "Memory allocation failed with mem size %lu\n", (long unsigned int) (len1 + len2 + 1));
         exit(1);
     }
     memcpy(result, s1, len1);
-    memcpy(result + len1, s2, len2 + 1);//+1 to copy the null-terminator
+    memcpy(result + len1, s2, len2 + 1);/* +1 to copy the null-terminator */
     return result;
 }
 
@@ -1818,7 +1818,7 @@ static unsigned int calc_mod_sustain(SF_Meta *sf_meta) {
 
 static void calc_resonance(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     short val = sf_meta->initialFilterQ;
-    //sp_meta->resonance = pow(10.0, (double)val / 2.0 / 200.0) - 1;
+  /*sp_meta->resonance = pow(10.0, (double)val / 2.0 / 200.0) - 1;*/
     sp_meta->resonance = val;
     if (sp_meta->resonance < 0)
         sp_meta->resonance = 0;
@@ -2291,7 +2291,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         else freq_scale = MID(0, sf_meta.keyscale * 1024 / 100, 2048);
 
         /* I don't know about this tuning. (gl) */
-        //sf_meta.tune += sf_meta.mod_env_to_pitch * MID(0, 1000-sf_meta.sustain_mod_env, 1000) / 1000;
+        /*sf_meta.tune += sf_meta.mod_env_to_pitch * MID(0, 1000-sf_meta.sustain_mod_env, 1000) / 1000;*/
 
         min_freq = freq_table[sf_meta.keymin];
         max_freq = freq_table[sf_meta.keymax];
@@ -3105,7 +3105,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
-    int i;
+    int i, j;
     char *config_file_path = NULL;
     char *old_config_file_path = NULL;
 
@@ -3477,7 +3477,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
             sample_bank.drumset_short_name[i] = NULL;
         }
 
-        for (int j = 0; j < UNSF_RANGE; j++) {
+        for (j = 0; j < UNSF_RANGE; j++) {
             free(sample_bank.voice_name[i][j]);
             sample_bank.voice_name[i][j] = NULL;
 
