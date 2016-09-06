@@ -39,27 +39,6 @@
 #define strtok_r unsf_strtok_r
 #include "strtok_r.h"
 #endif
-#ifndef __MINGW32__ /* #ifdef _MSC_VER */
-typedef unsigned short mode_t;
-#endif
-#define mkdir(A, B) _mkdir(A)
-#define access _access
-#ifndef S_IRGRP /* FIXME */
-#define S_IRGRP 0
-#define S_IROTH 0
-#define S_IXOTH 0
-#define S_IXGRP 0
-#endif
-#ifndef S_IRWXU /* FIXME */
-#define S_IRWXU 0
-#endif
-#ifndef F_OK    /* FIXME */
-#define R_OK    4
-#define W_OK    2
-#define F_OK    0
-#endif
-#undef  X_OK /* Note that X_OK (0x01) must not be used in windows code */
-#define X_OK    0
 #endif /* _WIN32 */
 
 #ifndef TRUE
@@ -444,7 +423,7 @@ enum {
 #define BAD_ALLOCATE()                                      \
 {                                                           \
    fprintf(stderr, "Error: cannot allocate memory\n");      \
-   exit(1);                                                 \
+   exit(1); /* FIXME: library must NOT exit() */            \
 }
 
 #define TO_HZ(abscents) (int)(8.176 * pow(2.0,(double)(abscents)/1200.0))
@@ -1041,14 +1020,37 @@ static char *unsf_concat(const char *s1, const char *s2) {
     char *result = NULL;
     if (!(result = (char *) malloc(len1 + len2 + 1))) { /* +1 for the zero-terminator */
         fprintf(stderr, "Memory allocation failed with mem size %lu\n", (long unsigned int) (len1 + len2 + 1));
-        exit(1);
+        exit(1); /* FIXME: library must NOT exit() */
     }
     memcpy(result, s1, len1);
     memcpy(result + len1, s2, len2 + 1);/* +1 to copy the null-terminator */
     return result;
 }
 
-static int unsf_mkdir(char *dir, mode_t mode) {
+#ifdef _WIN32
+static int sys_mkdir(const char *p) {
+    if (_mkdir(p) != -1) return 0;
+    if (errno == EEXIST) return 0;
+    return -1;
+}
+#elif defined(__SOME_FOO_PLATFORM__)
+static int sys_mkdir(const char *p) {
+#error implement me..
+    return -1;
+}
+#else /* unix */
+static int sys_mkdir(const char *p) {
+    int rc = mkdir(p, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    if (rc == -1 && errno == EEXIST) {
+        struct stat st;
+        if (stat(p, &st) == 0 && S_ISDIR(st.st_mode))
+            return 0;
+    }
+    return rc;
+}
+#endif
+
+static int unsf_mkdir(char *dir) {
     char *dup_dir;
     char *token;
     char *path;
@@ -1064,14 +1066,12 @@ static int unsf_mkdir(char *dir, mode_t mode) {
     path = unsf_concat(token, "/");
     /* walk through other tokens */
     while( token != NULL ) {
-        if (mkdir(path, mode) == -1) {
-            if (errno != EEXIST) {
-                fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", path, errno,
-                        strerror(errno));
-                free(path);
-                free(dup_dir);
-                exit(1);
-            }
+        if (sys_mkdir(path) == -1) {
+            fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", path, errno,
+                    strerror(errno));
+            free(path);
+            free(dup_dir);
+            return -1;
         }
         token = strtok_r(NULL, "\\/", &tok_thread);
         if (token == NULL)
@@ -1089,7 +1089,7 @@ static int unsf_mkdir(char *dir, mode_t mode) {
 }
 
 static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
-    int i, rcode, tonebank_count = 0;
+    int i, tonebank_count = 0;
     char tmpname[80];
     char *directory = NULL;
 
@@ -1106,8 +1106,9 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
             } else sample_bank->tonebank_name[i] = strdup(options->basename);
             if (options->opt_no_write) continue;
             directory = unsf_concat(options->output_directory, sample_bank->tonebank_name[i]);
-            if (access(directory, R_OK | W_OK | X_OK))
-                unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            if (unsf_mkdir(directory) < 0) {
+                exit(1); /* FIXME: library must NOT exit() */
+            }
             free(directory);
             directory = NULL;
         }
@@ -1117,12 +1118,8 @@ static void make_directories(UnSF_Options *options, SampleBank *sample_bank) {
     for (i = 0; i < UNSF_RANGE; i++) {
         if (sample_bank->drumset_name[i]) {
             directory = unsf_concat(options->output_directory, sample_bank->drumset_name[i]);
-            if ((rcode = access(directory, R_OK | W_OK | X_OK))) {
-                rcode = unsf_mkdir(directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-            }
-            if (rcode) {
-                fprintf(stderr, "Could not create directory %s\n", directory);
-                exit(1);
+            if (unsf_mkdir(directory) < 0) {
+                exit(1); /* FIXME: library must NOT exit() */
             }
             free(directory);
             directory = NULL;
@@ -1254,7 +1251,7 @@ static void mem_write_block(const void *data, int size, unsigned char **mem, int
         *mem_alloced = (*mem_alloced + size + 4095) & ~4095;
         if (!(*mem = (unsigned char *) malloc(*mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
-            exit(1);
+            exit(1); /* FIXME: library must NOT exit() */
         }
     }
 
@@ -1268,7 +1265,7 @@ static void mem_write8(int val, unsigned char **mem, int *mem_size, int *mem_all
         *mem_alloced += 4096;
         if (!(*mem = (unsigned char *) realloc(*mem, *mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
-            exit(1);
+            exit(1); /* FIXME: library must NOT exit() */
         }
     }
 
@@ -2089,7 +2086,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
                 else right_patches = 0;
             } else {
                 fprintf(stderr, "Internal error.\n");
-                exit(1);
+                exit(1); /* FIXME: library must NOT exit() */
             }
 
             mem_write8(velmin, mem, mem_size, mem_alloced);
@@ -2118,7 +2115,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
                     else right_patches = 0;
                 } else {
                     fprintf(stderr, "Internal error.\n");
-                    exit(1);
+                    exit(1); /* FIXME: library must NOT exit() */
                 }
 
                 mem_write8(velmin, mem, mem_size, mem_alloced);
@@ -3150,7 +3147,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     SampleBank sample_bank;
 
 
-    unsf_mkdir(options->output_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    unsf_mkdir(options->output_directory);
 
     config_file_path = unsf_concat(options->output_directory, options->basename);
     old_config_file_path = config_file_path;
@@ -3161,7 +3158,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
         if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
             free(options->basename);
             printf("Couldn't open %s for writing.\n", config_file_path);
-            exit(1);
+            exit(1); /* FIXME: library must NOT exit() */
         } else
             printf("Opened %s for writing.\n", config_file_path);
 
@@ -3283,7 +3280,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                         result = fread(sf_presets[i].achPresetName, 20, 1, f);
                                         if (result != 1) {
                                             fputs("Reading error (CID_phdr)", stderr);
-                                            exit(3);
+                                            exit(3); /* FIXME: library must NOT exit() */
                                         }
                                         sf_presets[i].wPreset = get16(f);
                                         sf_presets[i].wBank = get16(f);
@@ -3340,7 +3337,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                         result = fread(sf_instruments[i].achInstName, 20, 1, f);
                                         if (result != 1) {
                                             fputs("Reading error (CID_inst)", stderr);
-                                            exit(3);
+                                            exit(3); /* FIXME: library must NOT exit() */
                                         }
                                         sf_instruments[i].wInstBagNdx = get16(f);
                                     }
@@ -3392,7 +3389,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                         result = fread(sf_samples[i].achSampleName, 20, 1, f);
                                         if (result != 1) {
                                             fputs("Reading error (CID_shdr)", stderr);
-                                            exit(3);
+                                            exit(3); /* FIXME: library must NOT exit() */
                                         }
                                         sf_samples[i].dwStart = get32(f);
                                         sf_samples[i].dwEnd = get32(f);
