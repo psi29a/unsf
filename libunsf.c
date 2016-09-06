@@ -1014,7 +1014,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
     return TRUE;
 }
 
-char *unsf_concat(char *s1, char *s2) {
+static char *unsf_concat(char *s1, char *s2) {
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
     char *result = NULL;
@@ -1027,7 +1027,7 @@ char *unsf_concat(char *s1, char *s2) {
     return result;
 }
 
-int unsf_mkdir(char *dir, mode_t mode) {
+static int unsf_mkdir(char *dir, mode_t mode) {
     assert(dir && *dir);
     char *dup_dir = strdup(dir);
     char *token;
@@ -2476,6 +2476,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
 }
 
 /* converts loaded SoundFont data */
+static
 int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wanted_velmin, int wanted_velmax,
                    int sf_num_presets, sfPresetHeader *sf_presets,
                    sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
