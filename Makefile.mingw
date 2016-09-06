@@ -24,12 +24,21 @@ CFLAGS_LIB+=-DDLL_EXPORT=1
 LDFLAGS_LIB =-shared -Wl,--no-undefined -Wl,--enable-auto-image-base
 LDFLAGS_LIB+=-Wl,--out-implib,libunsf.dll.a
 
-unsf:
-	$(CC) $(CFLAGS) $(CFLAGS_LIB) -c libunsf.c
+all:	unsf.exe
+
+unsf.exe: getopt.o unsf.o libunsf.dll.a
+	$(CC) $(CFLAGS) -o unsf.exe getopt.o unsf.o -L. -lunsf
+
+libunsf.dll.a: libunsf.dll
+libunsf.dll: libunsf.o
 	$(CC) $(LDFLAGS_LIB) -o libunsf.dll libunsf.o
-	$(CC) $(CFLAGS) -o unsf.exe unsf.c -L. -lunsf
+
+getopt.o: getopt.c
+	$(CC) $(CFLAGS) -o getopt.o -c getopt.c
+unsf.o: unsf.c
+	$(CC) $(CFLAGS) -o unsf.o -c unsf.c
+libunsf.o: libunsf.c
+	$(CC) $(CFLAGS) $(CFLAGS_LIB) -o libunsf.o -c libunsf.c
 
 clean:
-	rm -f unsf libunsf.o libunsf.a libunsf.dll libunsf.dll.a unsf.exe
-
-all:	unsf
+	$(RM) *.o *.a *.dll *.dylib *.exe unsf

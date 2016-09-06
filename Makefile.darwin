@@ -32,12 +32,18 @@ LDFLAGS_LIB+=-Wl,-install_name,"@executable_path/libunsf.dylib"
 #CFLAGS+=-mmacosx-version-min=10.5
 #LDFLAGS_LIB+=-mmacosx-version-min=10.5
 
-unsf:
-	$(CC) $(CFLAGS) $(CFLAGS_LIB) -o libunsf.o -c libunsf.c
+all:	unsf
+
+unsf: unsf.o libunsf.dylib
+	$(CC) $(CFLAGS) -o unsf unsf.o -L. -lunsf
+
+libunsf.dylib: libunsf.o
 	$(CC) $(LDFLAGS_LIB) -o libunsf.dylib libunsf.o
-	$(CC) $(CFLAGS) -o unsf unsf.c -L. -lunsf
+
+unsf.o: unsf.c
+	$(CC) $(CFLAGS) -o unsf.o -c unsf.c
+libunsf.o: libunsf.c
+	$(CC) $(CFLAGS) $(CFLAGS_LIB) -o libunsf.o -c libunsf.c
 
 clean:
-	rm -f unsf libunsf.o libunsf.a libunsf.dylib unsf
-
-all:	unsf
+	$(RM) *.o *.a *.dll *.dylib *.exe unsf
