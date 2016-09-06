@@ -90,10 +90,9 @@ int main(int argc, char *argv[]) {
     inname = inname ? inname + 1 : argv[optind];
 
     if (!(options.basename = (char *) malloc(sizeof(char) * strlen(inname) + 1))) {
-        fprintf(stderr, "Memory allocation of %lu failed\n", strlen(inname) + 1);
+        fprintf(stderr, "Memory allocation of %lu failed\n", (unsigned long)strlen(inname) + 1);
         exit(1);
     }
-
 
     strcpy(options.basename, inname);
     inname = strrchr(options.basename, '.');

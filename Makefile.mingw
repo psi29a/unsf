@@ -1,0 +1,35 @@
+# to cross-compile, e.g.:
+# make CROSS=i686-w64-mingw32
+# make CROSS=i686-pc-mingw32
+# make CROSS=x86_64-w64-mingw32
+
+ifeq ($(CROSS),)
+CC=gcc
+AS=as
+AR=ar
+RANLIB=ranlib
+else
+CC=$(CROSS)-gcc
+AS=$(CROSS)-as
+AR=$(CROSS)-ar
+RANLIB=$(CROSS)-ranlib
+endif
+
+CFLAGS =-Wall -std=gnu99 -g -O2
+ARFLAGS=crv
+CFLAGS_LIB =-DUNSF_BUILD=1
+# symbol visibility:
+CFLAGS_LIB+=-DDLL_EXPORT=1
+
+LDFLAGS_LIB =-shared -Wl,--no-undefined -Wl,--enable-auto-image-base
+LDFLAGS_LIB+=-Wl,--out-implib,libunsf.dll.a
+
+unsf:
+	$(CC) $(CFLAGS) $(CFLAGS_LIB) -c libunsf.c
+	$(CC) $(LDFLAGS_LIB) -o libunsf.dll libunsf.o
+	$(CC) $(CFLAGS) -o unsf.exe unsf.c -L. -lunsf
+
+clean:
+	rm -f unsf libunsf.o libunsf.a libunsf.dll libunsf.dll.a unsf.exe
+
+all:	unsf

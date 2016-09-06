@@ -1,0 +1,43 @@
+# to cross-compile, e.g.:
+# make CROSS=x86_64-apple-darwin9
+# make CROSS=i686-apple-darwin9
+# make CROSS=powerpc-apple-darwin9
+
+ifeq ($(CROSS),)
+CC=gcc
+AS=as
+AR=ar
+RANLIB=ranlib
+else
+CC=$(CROSS)-gcc
+AS=$(CROSS)-as
+AR=$(CROSS)-ar
+RANLIB=$(CROSS)-ranlib
+endif
+
+CFLAGS =-Wall -std=gnu99 -O2
+ARFLAGS=crv
+CFLAGS_LIB =-DUNSF_BUILD=1
+CFLAGS_LIB+=-fPIC -fno-common
+# symbol visibility:
+CFLAGS_LIB+=-DSYM_VISIBILITY -fvisibility=hidden
+
+LDFLAGS_LIB =-dynamiclib -Wl,-single_module
+# version info
+LDFLAGS_LIB+=-Wl,-compatibility_version,1.0 -Wl,-current_version,1.0
+# library name
+LDFLAGS_LIB+=-Wl,-install_name,"@executable_path/libunsf.dylib"
+
+# specifically for 10.5 and newer:
+#CFLAGS+=-mmacosx-version-min=10.5
+#LDFLAGS_LIB+=-mmacosx-version-min=10.5
+
+unsf:
+	$(CC) $(CFLAGS) $(CFLAGS_LIB) -o libunsf.o -c libunsf.c
+	$(CC) $(LDFLAGS_LIB) -o libunsf.dylib libunsf.o
+	$(CC) $(CFLAGS) -o unsf unsf.c -L. -lunsf
+
+clean:
+	rm -f unsf libunsf.o libunsf.a libunsf.dylib unsf
+
+all:	unsf
