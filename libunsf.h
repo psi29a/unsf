@@ -31,6 +31,10 @@
 #  define UNSF_SYMBOL
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct UnSF_Options
 {
     int opt_8bit;
@@ -61,5 +65,8 @@ typedef struct UnSF_Options
 UNSF_SYMBOL UnSF_Options unsf_initialization();
 UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options);
 
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* UNSF_LIBUNSF_H */
