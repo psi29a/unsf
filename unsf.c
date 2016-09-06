@@ -17,13 +17,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "libunsf.h"
 
 
+#ifdef _WIN32
+extern int getopt(int argc, char **argv, char *opts);
 extern char *optarg;
 extern int optind, opterr, optopt;
+#endif
 
 int main(int argc, char *argv[]) {
     int i, c;
@@ -89,11 +94,10 @@ int main(int argc, char *argv[]) {
     inname = strrchr(argv[optind], '/');
     inname = inname ? inname + 1 : argv[optind];
 
-    if (!(options.basename = malloc(sizeof(char) * strlen(inname) + 1))) {
-        fprintf(stderr, "Memory allocation of %lu failed\n", strlen(inname) + 1);
+    if (!(options.basename = (char *) malloc(sizeof(char) * strlen(inname) + 1))) {
+        fprintf(stderr, "Memory allocation of %lu failed\n", (unsigned long)strlen(inname) + 1);
         exit(1);
     }
-
 
     strcpy(options.basename, inname);
     inname = strrchr(options.basename, '.');

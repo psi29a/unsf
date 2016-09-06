@@ -1,15 +1,33 @@
-unsf:
-	$(CC) -Wall -std=gnu11 -g -O2 -c libunsf.c
-	ar -cvq libunsf.a libunsf.o
-	$(CC) -g -O0 -o unsf unsf.c -L. -lunsf -lm
-win:
-	x86_64-w64-mingw32-gcc -D_WIN32=1 -DUNSF_BUILD=1 -DDLL_EXPORT=1 -Wall -std=gnu11 -g -O2 -c libunsf.c
-	x86_64-w64-mingw32-gcc -shared -o libunsf.dll libunsf.o -Wl,--out-implib,libunsf.dll.a
-	x86_64-w64-mingw32-gcc -g -O2 -o unsf.w64 unsf.c -L. -lunsf
+CC=gcc
+AS=as
+AR=ar
+RANLIB=ranlib
+
+CFLAGS =-Wall -std=gnu99 -g -O2
+CFLAGS_LIB =-DUNSF_BUILD=1
+#CFLAGS_LIB+=-fPIC -DPIC
+# symbol visibility:
+#CFLAGS_LIB+=-DSYM_VISIBILITY -fvisibility=hidden
+ARFLAGS=crv
+
+all:	unsf
+
+unsf: unsf.o libunsf.a
+	$(CC) -o unsf unsf.o -L. -lunsf -lm
+
+libunsf.a: libunsf.o
+	$(AR) $(ARFLAGS) libunsf.a libunsf.o
+	$(RANLIB) libunsf.a
+
+unsf.o: unsf.c
+	$(CC) $(CFLAGS) -o unsf.o -c unsf.c
+libunsf.o: libunsf.c
+	$(CC) $(CFLAGS) $(CFLAGS_LIB) -o libunsf.o -c libunsf.c
+
 install: unsf
 	install unsf $(DESTDIR)/usr/bin/
 uninstall:
 	rm -f $(DESTDIR)$/usr/bin/unsf
+
 clean:
-	rm -f unsf libunsf.o libunsf.a libunsf.dll libunsf.dll.a unsf.w64
-all:	unsf
+	$(RM) *.o *.a *.dll *.dylib *.exe unsf

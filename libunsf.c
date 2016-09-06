@@ -22,27 +22,41 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include "libunsf.h"
 
-#ifdef __MINGW32__
-#define strtok_r strtok_s
-#define mkdir(A, B) mkdir(A)
-#ifndef MINGW_HAS_SECURE_API
-// proto from /usr/x86_64-w64-mingw32/include/sec_api/string_s.h
-_CRTIMP char *__cdecl strtok_s(char *str, const char *delim, char **context);
-#endif /* MINGW_HAS_SECURE_API */
-#endif /* __MINGW32__ */
-
-#ifdef _MSC_VER
+#ifdef _WIN32
 #define strdup _strdup
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #define strtok_r strtok_s
-#define mkdir(A, B) mkdir(A)
+#else
+#define strtok_r unsf_strtok_r
+#include "strtok_r.h"
 #endif
+#define mkdir(A, B) _mkdir(A)
+#ifndef S_IRGRP
+#define S_IRGRP 0
+#define S_IROTH 0
+#define S_IXOTH 0
+#define S_IXGRP 0
+#endif
+#ifndef F_OK
+#define R_OK    4
+#define W_OK    2
+#define F_OK    0
+#endif
+#undef  X_OK /* Note that X_OK (0x01) must not be used in windows code */
+#define X_OK    0
+#endif /* _WIN32 */
 
 #ifndef TRUE
-#define TRUE         -1
+#define TRUE         1
 #define FALSE        0
 #endif
 
@@ -615,7 +629,7 @@ static void calc_end(RIFF_CHUNK *chunk, FILE *f) {
 
 
 /* reads and displays a SoundFont text/copyright message */
-static void print_sf_string(UnSF_Options *options, FILE *f, char *title, int opt_no_write, SampleBank *samplebank) {
+static void print_sf_string(UnSF_Options *options, FILE *f, const char *title, int opt_no_write, SampleBank *samplebank) {
     char buf[256];
     char ch;
     int i = 0;
@@ -1014,20 +1028,20 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
     return TRUE;
 }
 
-char *unsf_concat(char *s1, char *s2) {
+static char *unsf_concat(const char *s1, const char *s2) {
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
     char *result = NULL;
-    if (!(result = malloc(len1 + len2 + 1))) { //+1 for the zero-terminator
+    if (!(result = (char *) malloc(len1 + len2 + 1))) { /* +1 for the zero-terminator */
         fprintf(stderr, "Memory allocation failed with mem size %lu\n", (long unsigned int) (len1 + len2 + 1));
         exit(1);
     }
     memcpy(result, s1, len1);
-    memcpy(result + len1, s2, len2 + 1);//+1 to copy the null-terminator
+    memcpy(result + len1, s2, len2 + 1);/* +1 to copy the null-terminator */
     return result;
 }
 
-int unsf_mkdir(char *dir, mode_t mode) {
+static int unsf_mkdir(char *dir, mode_t mode) {
     assert(dir && *dir);
     char *dup_dir = strdup(dir);
     char *token;
@@ -1225,10 +1239,10 @@ static void shorten_drum_names(SampleBank *sample_bank) {
 }
 
 /* writes a block of data the memory buffer */
-static void mem_write_block(void *data, int size, unsigned char **mem, int *mem_size, int *mem_alloced) {
+static void mem_write_block(const void *data, int size, unsigned char **mem, int *mem_size, int *mem_alloced) {
     if (*mem_size + size > *mem_alloced) {
         *mem_alloced = (*mem_alloced + size + 4095) & ~4095;
-        if (!(*mem = malloc(*mem_alloced))) {
+        if (!(*mem = (unsigned char *) malloc(*mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
             exit(1);
         }
@@ -1242,7 +1256,7 @@ static void mem_write_block(void *data, int size, unsigned char **mem, int *mem_
 static void mem_write8(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
     if (*mem_size >= *mem_alloced) {
         *mem_alloced += 4096;
-        if (!(*mem = realloc(*mem, *mem_alloced))) {
+        if (!(*mem = (unsigned char *) realloc(*mem, *mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
             exit(1);
         }
@@ -1804,7 +1818,7 @@ static unsigned int calc_mod_sustain(SF_Meta *sf_meta) {
 
 static void calc_resonance(SP_Meta *sp_meta, SF_Meta *sf_meta) {
     short val = sf_meta->initialFilterQ;
-    //sp_meta->resonance = pow(10.0, (double)val / 2.0 / 200.0) - 1;
+  /*sp_meta->resonance = pow(10.0, (double)val / 2.0 / 200.0) - 1;*/
     sp_meta->resonance = val;
     if (sp_meta->resonance < 0)
         sp_meta->resonance = 0;
@@ -2277,7 +2291,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
         else freq_scale = MID(0, sf_meta.keyscale * 1024 / 100, 2048);
 
         /* I don't know about this tuning. (gl) */
-        //sf_meta.tune += sf_meta.mod_env_to_pitch * MID(0, 1000-sf_meta.sustain_mod_env, 1000) / 1000;
+        /*sf_meta.tune += sf_meta.mod_env_to_pitch * MID(0, 1000-sf_meta.sustain_mod_env, 1000) / 1000;*/
 
         min_freq = freq_table[sf_meta.keymin];
         max_freq = freq_table[sf_meta.keymax];
@@ -2476,6 +2490,7 @@ static int grab_soundfont_sample(UnSF_Options *options, char *name, int program,
 }
 
 /* converts loaded SoundFont data */
+static
 int grab_soundfont(UnSF_Options *options, int num, int drum, char *name, int wanted_velmin, int wanted_velmax,
                    int sf_num_presets, sfPresetHeader *sf_presets,
                    sfPresetBag *sf_preset_indexes, sfGenList *sf_preset_generators,
@@ -3090,7 +3105,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     RIFF_CHUNK file, chunk, subchunk;
     FILE *f;
     size_t result;
-    int i;
+    int i, j;
     char *config_file_path = NULL;
     char *old_config_file_path = NULL;
 
@@ -3247,7 +3262,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_presets * 38 != subchunk.size) ||
                                         (sf_num_presets < 2) || (sf_presets)) BAD_SF();
 
-                                    sf_presets = malloc(sizeof(sfPresetHeader) * sf_num_presets);
+                                    sf_presets = (sfPresetHeader *) malloc(sizeof(sfPresetHeader) * sf_num_presets);
                                     if (!sf_presets) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_presets; i++) {
@@ -3272,7 +3287,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_preset_indexes * 4 != subchunk.size) ||
                                         (sf_preset_indexes)) BAD_SF();
 
-                                    sf_preset_indexes = malloc(sizeof(sfPresetBag) * sf_num_preset_indexes);
+                                    sf_preset_indexes = (sfPresetBag *) malloc(sizeof(sfPresetBag) * sf_num_preset_indexes);
                                     if (!sf_preset_indexes) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_preset_indexes; i++) {
@@ -3288,7 +3303,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_preset_generators * 4 != subchunk.size) ||
                                         (sf_preset_generators)) BAD_SF();
 
-                                    sf_preset_generators = malloc(sizeof(sfGenList) * sf_num_preset_generators);
+                                    sf_preset_generators = (sfGenList *) malloc(sizeof(sfGenList) * sf_num_preset_generators);
                                     if (!sf_preset_generators) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_preset_generators; i++) {
@@ -3304,7 +3319,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_instruments * 22 != subchunk.size) ||
                                         (sf_num_instruments < 2) || (sf_instruments)) BAD_SF();
 
-                                    sf_instruments = malloc(sizeof(sfInst) * sf_num_instruments);
+                                    sf_instruments = (sfInst *) malloc(sizeof(sfInst) * sf_num_instruments);
                                     if (!sf_instruments) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_instruments; i++) {
@@ -3324,7 +3339,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_instrument_indexes * 4 != subchunk.size) ||
                                         (sf_instrument_indexes)) BAD_SF();
 
-                                    sf_instrument_indexes = malloc(sizeof(sfInstBag) * sf_num_instrument_indexes);
+                                    sf_instrument_indexes = (sfInstBag *) malloc(sizeof(sfInstBag) * sf_num_instrument_indexes);
                                     if (!sf_instrument_indexes) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_instrument_indexes; i++) {
@@ -3340,7 +3355,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_instrument_generators * 4 != subchunk.size) ||
                                         (sf_instrument_generators)) BAD_SF();
 
-                                    sf_instrument_generators = malloc(sizeof(sfGenList) * sf_num_instrument_generators);
+                                    sf_instrument_generators = (sfGenList *) malloc(sizeof(sfGenList) * sf_num_instrument_generators);
                                     if (!sf_instrument_generators) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_instrument_generators; i++) {
@@ -3356,7 +3371,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if ((sf_num_samples * 46 != subchunk.size) ||
                                         (sf_num_samples < 2) || (sf_samples)) BAD_SF();
 
-                                    sf_samples = malloc(sizeof(sfSample) * sf_num_samples);
+                                    sf_samples = (sfSample *) malloc(sizeof(sfSample) * sf_num_samples);
                                     if (!sf_samples) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_num_samples; i++) {
@@ -3392,7 +3407,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if (sf_sample_data) BAD_SF();
 
                                     sf_sample_data_size = subchunk.size / 2;
-                                    sf_sample_data = malloc(sizeof(short) * sf_sample_data_size);
+                                    sf_sample_data = (short *) malloc(sizeof(short) * sf_sample_data_size);
                                     if (!sf_sample_data) BAD_ALLOCATE();
 
                                     for (i = 0; i < sf_sample_data_size; i++)
@@ -3462,7 +3477,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
             sample_bank.drumset_short_name[i] = NULL;
         }
 
-        for (int j = 0; j < UNSF_RANGE; j++) {
+        for (j = 0; j < UNSF_RANGE; j++) {
             free(sample_bank.voice_name[i][j]);
             sample_bank.voice_name[i][j] = NULL;
 
