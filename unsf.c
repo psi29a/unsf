@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     inname = strrchr(argv[optind], '/');
     inname = inname ? inname + 1 : argv[optind];
 
-    if (!(options.basename = malloc(sizeof(char) * strlen(inname) + 1))) {
+    if (!(options.basename = (char *) malloc(sizeof(char) * strlen(inname) + 1))) {
         fprintf(stderr, "Memory allocation of %lu failed\n", strlen(inname) + 1);
         exit(1);
     }
