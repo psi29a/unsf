@@ -17,13 +17,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "libunsf.h"
 
 
+#ifdef _WIN32
+extern int getopt(int argc, char **argv, char *opts);
 extern char *optarg;
 extern int optind, opterr, optopt;
+#endif
 
 int main(int argc, char *argv[]) {
     int i, c;
