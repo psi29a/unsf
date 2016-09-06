@@ -42,7 +42,7 @@ _CRTIMP char *__cdecl strtok_s(char *str, const char *delim, char **context);
 #endif
 
 #ifndef TRUE
-#define TRUE         -1
+#define TRUE         1
 #define FALSE        0
 #endif
 
