@@ -414,12 +414,6 @@ enum {
 
 
 /* error handling macro */
-#define BAD_SF()                                            \
-{                                                           \
-   fprintf(stderr, "Error: bad SoundFont structure\n");     \
-   goto getout;                                             \
-}
-
 #define BAD_ALLOCATE()                                      \
 {                                                           \
    fprintf(stderr, "Error: cannot allocate memory\n");      \
@@ -3115,6 +3109,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     FILE *f;
     size_t result;
     int i, j;
+    int rc = 0;
     char *config_file_path = NULL;
     char *old_config_file_path = NULL;
 
@@ -3146,6 +3141,16 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
 
     SampleBank sample_bank;
 
+#define BAD_SF() {                                          \
+   fprintf(stderr, "Error: bad SoundFont structure\n");     \
+   rc = -1;                                                 \
+   goto getout;                                             \
+}
+#define BAD_SEEK() {                                        \
+   fprintf(stderr, "Failed seek: %s\n", strerror(errno));   \
+   rc = -1;                                                 \
+   goto getout;                                             \
+}
 
     unsf_mkdir(options->output_directory);
 
@@ -3158,7 +3163,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
         if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
             free(options->basename);
             printf("Couldn't open %s for writing.\n", config_file_path);
-            exit(1); /* FIXME: library must NOT exit() */
+            return;
         } else
             printf("Opened %s for writing.\n", config_file_path);
 
@@ -3183,7 +3188,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     file.id = get32(f);
     if (file.id != CID_RIFF) {
         fprintf(stderr, "Error: bad SoundFont header\n");
-        errno = 1;
+        rc = -1;
         goto getout;
     }
 
@@ -3192,7 +3197,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     file.type = get32(f);
     if (file.type != CID_sfbk) {
         fprintf(stderr, "Error: bad SoundFont header\n");
-        errno = 1;
+        rc = -1;
         goto getout;
     }
 
@@ -3222,7 +3227,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                     if (get16(f) < 2) {
                                         fprintf(stderr,
                                                 "Error: this is a SoundFont 1.x file, and I only understand version 2 (.sf2)\n");
-                                        errno = 1;
+                                        rc = -1;
                                         goto getout;
                                     }
                                     get16(f);
@@ -3258,8 +3263,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            if ((errno = fseek(f, subchunk.end, SEEK_SET)))
-                                printf("\nError code for fseek is: %d\n", errno);
+                            if (fseek(f, subchunk.end, SEEK_SET) < 0) BAD_SEEK();
                             break;
 
                         case CID_pdta:
@@ -3280,7 +3284,8 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                         result = fread(sf_presets[i].achPresetName, 20, 1, f);
                                         if (result != 1) {
                                             fputs("Reading error (CID_phdr)", stderr);
-                                            exit(3); /* FIXME: library must NOT exit() */
+                                            rc = -1;
+                                            goto getout;
                                         }
                                         sf_presets[i].wPreset = get16(f);
                                         sf_presets[i].wBank = get16(f);
@@ -3337,7 +3342,8 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                         result = fread(sf_instruments[i].achInstName, 20, 1, f);
                                         if (result != 1) {
                                             fputs("Reading error (CID_inst)", stderr);
-                                            exit(3); /* FIXME: library must NOT exit() */
+                                            rc = -1;
+                                            goto getout;
                                         }
                                         sf_instruments[i].wInstBagNdx = get16(f);
                                     }
@@ -3389,7 +3395,8 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                                         result = fread(sf_samples[i].achSampleName, 20, 1, f);
                                         if (result != 1) {
                                             fputs("Reading error (CID_shdr)", stderr);
-                                            exit(3); /* FIXME: library must NOT exit() */
+                                            rc = -1;
+                                            goto getout;
                                         }
                                         sf_samples[i].dwStart = get32(f);
                                         sf_samples[i].dwEnd = get32(f);
@@ -3405,8 +3412,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            if ((errno = fseek(f, subchunk.end, SEEK_SET)))
-                                printf("\nError code for fseek is: %d\n", errno);
+                            if (fseek(f, subchunk.end, SEEK_SET) < 0) BAD_SEEK();
                             break;
 
                         case CID_sdta:
@@ -3428,14 +3434,12 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
                             }
 
                             /* skip unknown chunks and extra data */
-                            if ((errno = fseek(f, subchunk.end, SEEK_SET)))
-                                printf("\nError code for fseek is: %d\n", errno);
+                            if (fseek(f, subchunk.end, SEEK_SET) < 0) BAD_SEEK();
                             break;
 
                         default:
                             /* unrecognised chunk */
-                            if ((errno = fseek(f, chunk.end, SEEK_SET)))
-                                printf("\nError code for fseek is: %d\n", errno);
+                            if (fseek(f, chunk.end, SEEK_SET) < 0) BAD_SEEK();
                             break;
                     }
                 }
@@ -3443,8 +3447,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
 
             default:
                 /* not a list so we're not interested */
-                if ((errno = fseek(f, chunk.end, SEEK_SET)))
-                    printf("\nError code for fseek is: %d\n", errno);
+                if (fseek(f, chunk.end, SEEK_SET) < 0) BAD_SEEK();
                 break;
         }
 
@@ -3454,7 +3457,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
     getout:
 
     /* convert SoundFont to .pat format, and add it to the output datafile */
-    if (!errno) {
+    if (rc == 0) {
         if ((!sf_sample_data) || (!sf_presets) ||
             (!sf_preset_indexes) || (!sf_preset_generators) ||
             (!sf_instruments) || (!sf_instrument_indexes) ||
@@ -3550,7 +3553,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
 }
 
 /* initialize option variables for use */
-UNSF_SYMBOL UnSF_Options unsf_initialization() {
+UNSF_SYMBOL UnSF_Options unsf_initialization(void) {
     UnSF_Options options = {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 1, NULL, "./"};
     memset(options.melody_velocity_override, -1, 128 * 128);
     memset(options.drum_velocity_override, -1, 128 * 128);
