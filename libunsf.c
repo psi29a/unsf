@@ -3167,16 +3167,10 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
             printf("Opened %s for writing.\n", config_file_path);
 
     }
-    free(config_file_path); config_file_path = NULL;
+    free(config_file_path);
+    config_file_path = NULL;
 
-    memset(sample_bank.tonebank, 0, UNSF_RANGE);
-    memset(sample_bank.tonebank_name, 0, UNSF_RANGE);
-    memset(sample_bank.drumset_name, 0, UNSF_RANGE);
-    memset(sample_bank.drumset_short_name, 0, UNSF_RANGE);
-    memset(sample_bank.voice_name, 0, UNSF_RANGE * UNSF_RANGE);
-    memset(sample_bank.voice_velocity, 0, UNSF_RANGE * UNSF_RANGE);
-    memset(sample_bank.drum_name, 0, UNSF_RANGE * UNSF_RANGE);
-    memset(sample_bank.drum_velocity, 0, UNSF_RANGE * UNSF_RANGE);
+    memset(&sample_bank, 0, sizeof(struct SampleBank));
 
     f = fopen(options->opt_soundfont, "rb");
     if (!f) {
