@@ -1045,7 +1045,11 @@ static int sys_mkdir(const char *p) {
 static int unsf_mkdir(char *dir) {
     char path[1024], *p, c;
 
-    if (!dir || !*dir) return 0;
+    if (!dir) {
+        fprintf(stderr,"NULL directory name\n");
+        return -1;
+    }
+    if (!dir[0]) return 0;
 
     strcpy(path, dir);
     p = path + strlen(dir) - 1;
