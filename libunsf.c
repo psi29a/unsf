@@ -3160,7 +3160,7 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
 
     if (!options->opt_no_write) {
         if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
-            free(options->basename);
+            free(config_file_path);
             printf("Couldn't open %s for writing.\n", config_file_path);
             return;
         } else
