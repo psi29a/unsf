@@ -62,7 +62,7 @@ typedef struct UnSF_Options
     FILE *cfg_fd;
 } UnSF_Options;
 
-UNSF_SYMBOL UnSF_Options unsf_initialization();
+UNSF_SYMBOL UnSF_Options unsf_initialization(void);
 UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options);
 
 #if defined(__cplusplus)
