@@ -13,7 +13,6 @@
  *
  */
 
-#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -33,13 +32,7 @@
 
 #ifdef _WIN32
 #define strdup _strdup
-#if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#define strtok_r strtok_s
-#else
-#define strtok_r unsf_strtok_r
-#include "strtok_r.h"
 #endif
-#endif /* _WIN32 */
 
 #ifndef TRUE
 #define TRUE         1
@@ -1043,41 +1036,42 @@ static int sys_mkdir(const char *p) {
 }
 #endif
 
+/* FIXME: NEED BETTER FILENAME HANDLING ( filenames.h ) */
+#ifdef _WIN32
+#define IS_DIR_SEPARATOR(c)     ((c) == '/' || (c) == '\\')
+#else
+#define IS_DIR_SEPARATOR(c)     ((c) == '/')
+#endif
 static int unsf_mkdir(char *dir) {
-    char *dup_dir;
-    char *token;
-    char *path;
-    char *old_path;
-    char *tok_thread;
+    char path[1024], *p, c;
 
-    assert(dir && *dir);
+    if (!dir || !*dir) return 0;
 
-    dup_dir = strdup(dir);
-
-    /* get the first token */
-    token = strtok_r(dup_dir, "\\/", &tok_thread);
-    path = unsf_concat(token, "/");
-    /* walk through other tokens */
-    while( token != NULL ) {
-        if (sys_mkdir(path) == -1) {
-            fprintf(stderr, "Could not create directory %s, errno: %d, reason: %s\n", path, errno,
-                    strerror(errno));
-            free(path);
-            free(dup_dir);
-            return -1;
-        }
-        token = strtok_r(NULL, "\\/", &tok_thread);
-        if (token == NULL)
-            continue;
-        old_path = path;
-        path = unsf_concat(path, token);
-        free(old_path);
-        old_path = path;
-        path = unsf_concat(path, "/");
-        free(old_path);
+    strcpy(path, dir);
+    p = path + strlen(dir) - 1;
+    if (!IS_DIR_SEPARATOR(*p)) {
+        p[1] = '/';
+        p[2] = 0;
     }
-    free(path);
-    free(dup_dir);
+    p = path;
+
+#ifdef _WIN32
+    if (p[1] == ':') p += 2;
+#endif
+    if (IS_DIR_SEPARATOR(*p))
+        p++;
+
+    for ( ; *p; p++) {
+        c = *p;
+        if (IS_DIR_SEPARATOR(c)) {
+            *p = 0;
+            if (sys_mkdir(path) < 0) {
+                fprintf(stderr, "Could not create directory %s: %s\n", path, strerror(errno));
+                return -1;
+            }
+            *p = c;
+        }
+    }
     return 0;
 }
 

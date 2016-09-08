@@ -319,10 +319,6 @@
 				RelativePath=".\libunsf.h"
 				>
 			</File>
-			<File
-				RelativePath=".\strtok_r.h"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"
