@@ -1255,7 +1255,8 @@ static void mem_write_block(const void *data, int size, unsigned char **mem, int
 /* writes a byte to the memory buffer */
 static void mem_write8(int val, unsigned char **mem, int *mem_size, int *mem_alloced) {
     if (*mem_size >= *mem_alloced) {
-        *mem_alloced += 4096;
+        if (*mem_alloced == 0) *mem_alloced = 1048576;
+        else *mem_alloced *= 2;
         if (!(*mem = (unsigned char *) realloc(*mem, *mem_alloced))) {
             fprintf(stderr, "Memory allocation of %d failed with mem size %d\n", *mem_alloced, *mem_size);
             exit(1); /* FIXME: library must NOT exit() */
