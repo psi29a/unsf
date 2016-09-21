@@ -5,11 +5,12 @@ branches:
         - master
         - /unsf-.*$/
 
-platform:
-    - Win32
-    - x64
-
-configuration: Debug
+environment:
+    matrix:
+      - GEN: "Visual Studio 14 2015"
+        CFG: Release
+      - GEN: "Visual Studio 14 2015 Win64"
+        CFG: Release
 
 matrix:
     fast_finish: true
@@ -23,10 +24,8 @@ clone_depth: 1
 
 clone_folder: C:\projects\unsf
 
-#before_build:
-#    - cmd: sh %APPVEYOR_BUILD_FOLDER%\CI\before_script.msvc.sh -u -p %PLATFORM%
-
 build_script:
-    - cmd: if %PLATFORM%==Win32 set build=Build_32
-    - cmd: if %PLATFORM%==x64 set build=Build_64
-    - cmd: msbuild unsf.sln /t:Build /p:Configuration=%configuration% /m:2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - cd build
+    - cmake .. -G"%GEN%"
+    - cmake --build . --config %CFG% --clean-first
+#    - cmd: msbuild unsf.sln /t:Build /p:Configuration=%configuration% /m:2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
