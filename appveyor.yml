@@ -1,0 +1,32 @@
+version: "{build}"
+
+branches:
+    only:
+        - master
+        - /unsf-.*$/
+
+platform:
+    - Win32
+    - x64
+
+configuration: Debug
+
+matrix:
+    fast_finish: true
+
+# For the Qt, Boost, CMake, etc installs
+os: unstable
+
+# We want the git revision for versioning,
+# so shallow clones don't work.
+clone_depth: 1
+
+clone_folder: C:\projects\unsf
+
+#before_build:
+#    - cmd: sh %APPVEYOR_BUILD_FOLDER%\CI\before_script.msvc.sh -u -p %PLATFORM%
+
+build_script:
+    - cmd: if %PLATFORM%==Win32 set build=Build_32
+    - cmd: if %PLATFORM%==x64 set build=Build_64
+    - cmd: msbuild %build%\unsf.sln /t:Build /p:Configuration=%configuration% /m:2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
