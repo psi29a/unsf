@@ -25,6 +25,7 @@ clone_depth: 1
 clone_folder: C:\projects\unsf
 
 build_script:
+    - mkdir build
     - cd build
     - cmake .. -G"%GEN%"
     - cmake --build . --config %CFG% --clean-first
