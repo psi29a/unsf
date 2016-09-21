@@ -29,4 +29,4 @@ clone_folder: C:\projects\unsf
 build_script:
     - cmd: if %PLATFORM%==Win32 set build=Build_32
     - cmd: if %PLATFORM%==x64 set build=Build_64
-    - cmd: msbuild %build%\unsf.sln /t:Build /p:Configuration=%configuration% /m:2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+    - cmd: msbuild unsf.sln /t:Build /p:Configuration=%configuration% /m:2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
