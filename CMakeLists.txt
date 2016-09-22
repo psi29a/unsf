@@ -121,49 +121,6 @@ int main()
     endif()
 ENDIF()
 
-# Set visibility/export options if available
-SET(HIDDEN_DECL "")
-IF(WIN32)
-    SET(EXPORT_DECL "__declspec(dllexport)")
-    IF(NOT MINGW)
-        SET(ALIGN_DECL "__declspec(align(x))")
-    ELSE()
-        SET(ALIGN_DECL "__declspec(aligned(x))")
-    ENDIF()
-ELSE()
-    SET(OLD_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
-    # Yes GCC, really don't accept visibility modes you don't support
-    SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS} -Wattributes -Werror")
-
-    #CHECK_C_SOURCE_COMPILES("int foo() __attribute__((visibility(\"protected\")));
-    #                         int main() {return 0;}" HAVE_GCC_PROTECTED_VISIBILITY)
-    IF(HAVE_GCC_PROTECTED_VISIBILITY)
-        SET(EXPORT_DECL "__attribute__((visibility(\"protected\")))")
-    ELSE()
-        #CHECK_C_SOURCE_COMPILES("int foo() __attribute__((visibility(\"default\")));
-        #                         int main() {return 0;}" HAVE_GCC_DEFAULT_VISIBILITY)
-        IF(HAVE_GCC_DEFAULT_VISIBILITY)
-            SET(EXPORT_DECL "__attribute__((visibility(\"default\")))")
-        ENDIF()
-    ENDIF()
-
-    IF(HAVE_GCC_PROTECTED_VISIBILITY OR HAVE_GCC_DEFAULT_VISIBILITY)
-        #CHECK_C_COMPILER_FLAG(-fvisibility=hidden HAVE_VISIBILITY_HIDDEN_SWITCH)
-        IF(HAVE_VISIBILITY_HIDDEN_SWITCH)
-            SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -fvisibility=hidden")
-            SET(HIDDEN_DECL "__attribute__((visibility(\"hidden\")))")
-        ENDIF()
-    ENDIF()
-
-    #CHECK_C_SOURCE_COMPILES("int foo __attribute__((aligned(16)));
-    #                         int main() {return 0;}" HAVE_ATTRIBUTE_ALIGNED)
-    IF(HAVE_ATTRIBUTE_ALIGNED)
-        SET(ALIGN_DECL "__attribute__((aligned(x)))")
-    ENDIF()
-
-    SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS}")
-ENDIF()
-
 # create our pkg-config: unsf.pc
 SET(prefix ${CMAKE_INSTALL_PREFIX})
 SET(exec_prefix "\${prefix}")
@@ -191,7 +148,7 @@ ENDIF()
 IF(WIN32 AND NOT LIBTYPE STREQUAL "STATIC")
     SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES PREFIX "")
 
-    IF(MINGW AND ALSOFT_BUILD_IMPORT_LIB)
+    IF(MINGW AND UNSF_BUILD_IMPORT_LIB)
         FIND_PROGRAM(SED_EXECUTABLE NAMES sed DOC "sed executable")
         FIND_PROGRAM(DLLTOOL_EXECUTABLE NAMES "${DLLTOOL}" DOC "dlltool executable")
         IF(NOT SED_EXECUTABLE OR NOT DLLTOOL_EXECUTABLE)
@@ -213,6 +170,8 @@ IF(WIN32 AND NOT LIBTYPE STREQUAL "STATIC")
         ENDIF()
     ENDIF()
 ENDIF()
+
+target_compile_definitions(${LIBNAME} PRIVATE UNSF_BUILD=1 UNSF_STATIC=1)
 
 SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY COMPILE_FLAGS ${EXTRA_CFLAGS})
 
