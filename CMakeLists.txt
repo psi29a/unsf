@@ -154,11 +154,15 @@ ELSE()
     ENDIF()
 ENDIF()
 
-IF(WIN32)
-    # A hack to get around the "Debug" and "Release" directories Visual Studio tries to add
-    SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES PREFIX "../")
-    SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES IMPORT_PREFIX "../")
-ENDIF(WIN32)
+
+if ( MSVC )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR} )
+    # etc for the other available configuration types (MinSizeRel, RelWithDebInfo)
+endif ( MSVC )
 
 add_definitions(-DUNSF_STATIC)
 
