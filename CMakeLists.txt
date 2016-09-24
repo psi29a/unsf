@@ -14,17 +14,12 @@ SET(LIB_MINOR_VERSION "1")
 SET(LIB_REVISION "0")
 SET(LIB_VERSION "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_REVISION}")
 
-IF(MSVC)
-    SET(BUILT_TYPE Debug)
-ELSE()
-    SET(BUILT_TYPE RelWithDebInfo)
-ENDIF()
-
 IF(NOT CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE ${BUILT_TYPE} CACHE STRING
+    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
         "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
         FORCE)
 ENDIF()
+
 IF(NOT CMAKE_DEBUG_POSTFIX)
     SET(CMAKE_DEBUG_POSTFIX "" CACHE STRING
         "Library postfix for debug builds. Normally left blank."
@@ -146,45 +141,24 @@ SET(UNSF_OBJS libunsf.c)
 IF(LIBTYPE STREQUAL "STATIC")
     ADD_LIBRARY(${LIBNAME} STATIC ${UNSF_OBJS})
     IF(MSVC)
-        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${CMAKE_BUILD_TYPE}\\${LIBNAME}.lib")
+        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${LIBNAME}.lib")
     ELSE()
         SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.a")
     ENDIF()
 ELSE()
     ADD_LIBRARY(${LIBNAME} SHARED ${UNSF_OBJS})
     IF(MSVC)
-        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${CMAKE_BUILD_TYPE}\\${LIBNAME}.dll")
+        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${LIBNAME}.dll")
     ELSE()
         SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.so")
     ENDIF()
 ENDIF()
 
-
-IF(WIN32 AND NOT LIBTYPE STREQUAL "STATIC")
-    SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES PREFIX "")
-
-    IF(MINGW AND UNSF_BUILD_IMPORT_LIB)
-        FIND_PROGRAM(SED_EXECUTABLE NAMES sed DOC "sed executable")
-        FIND_PROGRAM(DLLTOOL_EXECUTABLE NAMES "${DLLTOOL}" DOC "dlltool executable")
-        IF(NOT SED_EXECUTABLE OR NOT DLLTOOL_EXECUTABLE)
-            MESSAGE(STATUS "")
-            IF(NOT SED_EXECUTABLE)
-                MESSAGE(STATUS "WARNING: Cannot find sed, disabling .def/.lib generation")
-            ENDIF()
-            IF(NOT DLLTOOL_EXECUTABLE)
-                MESSAGE(STATUS "WARNING: Cannot find dlltool, disabling .def/.lib generation")
-            ENDIF()
-        ELSE()
-            SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES LINK_FLAGS "-Wl,--output-def,${LIBNAME}.def")
-            ADD_CUSTOM_COMMAND(TARGET ${LIBNAME} POST_BUILD
-                    COMMAND "${SED_EXECUTABLE}" -i -e "s/ @[^ ]*//" ${LIBNAME}.def
-                    COMMAND "${DLLTOOL_EXECUTABLE}" -d ${LIBNAME}.def -l ${LIBNAME}.lib -D ${LIBNAME}.dll
-                    COMMENT "Stripping ordinals from ${LIBNAME}.def and generating ${LIBNAME}.lib..."
-                    VERBATIM
-                    )
-        ENDIF()
-    ENDIF()
-ENDIF()
+IF(WIN32)
+    # A hack to get around the "Debug" and "Release" directories Visual Studio tries to add
+    SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES PREFIX "../")
+    SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES IMPORT_PREFIX "../")
+ENDIF(WIN32)
 
 add_definitions(-DUNSF_STATIC)
 
