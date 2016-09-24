@@ -1049,14 +1049,26 @@ static int unsf_mkdir(char *dir) {
     char *path;
     char *old_path;
     char *tok_thread;
+    int absolute_path = 0;
 
     assert(dir && *dir);
 
     dup_dir = strdup(dir);
 
+    if (dup_dir[0] == '/' || dup_dir[0] == '\\')
+        absolute_path = 1;
+
     /* get the first token */
     token = strtok_r(dup_dir, "\\/", &tok_thread);
-    path = unsf_concat(token, "/");
+    if (absolute_path) {
+        path = unsf_concat("/", token);
+        old_path = path;
+        path = unsf_concat(path, "/");
+        free(old_path);
+    } else {
+        path = unsf_concat(token, "/");
+    }
+
     /* walk through other tokens */
     while( token != NULL ) {
         if (sys_mkdir(path) == -1) {
@@ -3160,8 +3172,8 @@ UNSF_SYMBOL void unsf_convert_sf_to_gus(UnSF_Options *options) {
 
     if (!options->opt_no_write) {
         if (!(options->cfg_fd = fopen(config_file_path, "wb"))) {
-            free(config_file_path);
             printf("Couldn't open %s for writing.\n", config_file_path);
+            free(config_file_path);
             return;
         } else
             printf("Opened %s for writing.\n", config_file_path);

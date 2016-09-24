@@ -1,0 +1,35 @@
+version: "{build}"
+
+branches:
+    only:
+        - master
+        - /unsf-.*$/
+
+environment:
+    matrix:
+      - GEN: "Visual Studio 14 2015"
+        CFG: Release
+      - GEN: "Visual Studio 14 2015 Win64"
+        CFG: Release
+
+matrix:
+    fast_finish: true
+
+# For the Qt, Boost, CMake, etc installs
+os: unstable
+
+# We want the git revision for versioning,
+# so shallow clones don't work.
+clone_depth: 1
+
+clone_folder: C:\projects\unsf
+
+before_build:
+    - del "C:\Program Files (x86)\MSBuild\14.0\Microsoft.Common.targets\ImportAfter\Xamarin.Common.targets"
+
+build_script:
+    - mkdir build
+    - cd build
+    - cmake .. -G"%GEN%"
+    - cmake --build . --config %CFG% --clean-first
+#    - cmd: msbuild unsf.sln /t:Build /p:Configuration=%configuration% /m:2 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"

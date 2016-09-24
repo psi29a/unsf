@@ -116,8 +116,8 @@ int main(int argc, char *argv[]) {
 
     unsf_convert_sf_to_gus(&options);
 
-    free(options.basename);
-    if (!options.opt_no_write) fclose(options.cfg_fd);
+    if (options.basename) free(options.basename);
+    if (!options.opt_no_write && options.cfg_fd) fclose(options.cfg_fd);
     printf("Finished!\n");
 
     return 0;

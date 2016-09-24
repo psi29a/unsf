@@ -1,6 +1,8 @@
 #ifndef UNSF_LIBUNSF_H
 #define UNSF_LIBUNSF_H
 
+#include <stdlib.h>
+
 /* set our symbol export visiblity */
 #if defined _WIN32 || defined __CYGWIN__
 /* ========== NOTE TO WINDOWS DEVELOPERS:

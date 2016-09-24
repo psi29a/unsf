@@ -19,6 +19,7 @@ IF(NOT CMAKE_BUILD_TYPE)
         "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
         FORCE)
 ENDIF()
+
 IF(NOT CMAKE_DEBUG_POSTFIX)
     SET(CMAKE_DEBUG_POSTFIX "" CACHE STRING
         "Library postfix for debug builds. Normally left blank."
@@ -43,6 +44,83 @@ endif()
 
 
 SET(LIBNAME "UnSF")
+IF(WIN32)
+    ADD_DEFINITIONS("-D_WIN32 -D_WIN32_WINNT=0x0502")
+
+    # This option is mainly for static linking UnSF into another project
+    # that already defines the IDs. It is up to that project to ensure all
+    # required IDs are defined.
+    OPTION(UNSF_NO_UID_DEFS "Do not define GUIDs, IIDs, CLSIDs, or PropertyKeys" OFF)
+
+    IF(MINGW)
+        OPTION(UNSF_BUILD_IMPORT_LIB "Build an import .lib using dlltool (requires sed)" ON)
+        IF(NOT DLLTOOL)
+            IF(HOST)
+                SET(DLLTOOL "${HOST}-dlltool")
+            ELSE()
+                SET(DLLTOOL "dlltool")
+            ENDIF()
+        ENDIF()
+    ENDIF()
+ENDIF()
+
+SET(EXTRA_CFLAGS "")
+IF(MSVC)
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+    ADD_DEFINITIONS(-D_CRT_NONSTDC_NO_DEPRECATE)
+    SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} /wd4098")
+
+    OPTION(FORCE_STATIC_VCRT "Force /MT for static VC runtimes" OFF)
+    IF(FORCE_STATIC_VCRT)
+        FOREACH(flag_var
+                CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+                CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO)
+            IF(${flag_var} MATCHES "/MD")
+                STRING(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+            ENDIF()
+        ENDFOREACH(flag_var)
+    ENDIF()
+ELSE()
+    SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Winline -Wall")
+    #CHECK_C_COMPILER_FLAG(-Wextra HAVE_W_EXTRA)
+    IF(HAVE_W_EXTRA)
+        SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Wextra")
+    ENDIF()
+
+    IF(UNSF_WERROR)
+        SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Werror")
+    ENDIF()
+
+    # We want RelWithDebInfo to actually include debug stuff (define _DEBUG
+    # instead of NDEBUG)
+    FOREACH(flag_var  CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+        IF(${flag_var} MATCHES "-DNDEBUG")
+            STRING(REGEX REPLACE "-DNDEBUG" "-D_DEBUG" ${flag_var} "${${flag_var}}")
+        ENDIF()
+    ENDFOREACH()
+
+    #CHECK_C_SOURCE_COMPILES("int foo() __attribute__((destructor));
+    #                         int main() {return 0;}" HAVE_GCC_DESTRUCTOR)
+
+    option(UNSF_STATIC_LIBGCC "Force -static-libgcc for static GCC runtimes" OFF)
+    if(UNSF_STATIC_LIBGCC)
+        set(OLD_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} -static-libgcc)
+        check_c_source_compiles(
+"#include <stdlib.h>
+int main()
+{
+    return 0;
+}"
+            HAVE_STATIC_LIBGCC_SWITCH
+        )
+        if(HAVE_STATIC_LIBGCC_SWITCH)
+            set(EXTRA_LIBS ${EXTRA_LIBS} -static-libgcc)
+        endif()
+        set(CMAKE_REQUIRED_LIBRARIES ${OLD_REQUIRED_LIBRARIES})
+        unset(OLD_REQUIRED_LIBRARIES)
+    endif()
+ENDIF()
 
 # create our pkg-config: unsf.pc
 SET(prefix ${CMAKE_INSTALL_PREFIX})
@@ -62,22 +140,53 @@ SET(UNSF_OBJS libunsf.c)
 
 IF(LIBTYPE STREQUAL "STATIC")
     ADD_LIBRARY(${LIBNAME} STATIC ${UNSF_OBJS})
-    SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.a")
+    IF(MSVC)
+        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${LIBNAME}.lib")
+    ELSE()
+        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.a")
+    ENDIF()
 ELSE()
     ADD_LIBRARY(${LIBNAME} SHARED ${UNSF_OBJS})
-    SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.so")
+    IF(MSVC)
+        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${LIBNAME}.dll")
+    ELSE()
+        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.so")
+    ENDIF()
 ENDIF()
+
+
+if ( MSVC )
+    set_target_properties( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR} )
+    set_target_properties( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR} )
+endif ( MSVC )
+
+add_definitions(-DUNSF_STATIC)
 
 SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY COMPILE_FLAGS ${EXTRA_CFLAGS})
 
 IF(WIN32 AND UnSF_NO_UID_DEFS)
     SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY COMPILE_DEFINITIONS NO_UID_DEFS)
+ELSEIF(NOT WIN32)
+    SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY POSITION_INDEPENDENT_CODE TRUE)
 ENDIF()
 
 SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES VERSION ${LIB_VERSION}
         SOVERSION ${LIB_MAJOR_VERSION})
 
 # build executable
-ADD_EXECUTABLE(unsf unsf.c libunsf.h)
-ADD_DEPENDENCIES(unsf ${LIBNAME})
-TARGET_LINK_LIBRARIES(unsf ${libUnSF_LOCATION} ${EXTRA_LIBS})
+IF (MSVC)
+    SET(GETOPT getopt.c)
+ELSE ()
+    SET(GETOPT)
+ENDIF ()
+ADD_EXECUTABLE(sf2pat unsf.c libunsf.h ${GETOPT})
+ADD_DEPENDENCIES(sf2pat ${LIBNAME})
+TARGET_LINK_LIBRARIES(sf2pat ${libUnSF_LOCATION} ${EXTRA_LIBS})
