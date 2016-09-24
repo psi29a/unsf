@@ -195,7 +195,7 @@ SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES VERSION ${LIB_VERSION}
 
 # build executable
 IF (MSVC)
-    SET(GETOPT getopt_long.c)
+    SET(GETOPT getopt.c)
 ELSE ()
     SET(GETOPT)
 ENDIF ()
