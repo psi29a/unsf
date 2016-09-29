@@ -804,10 +804,13 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
         /* prettify the preset name */
         s = getname(sf_presets[pnum].achPresetName);
         for (unsigned short x = 0; x<strlen(forbidden_chars); x++) {
-            char *bad_char = strchr(s, forbidden_chars[x]);
-            if ( bad_char != NULL) {
-                *bad_char = ((float) *bad_char / 127) * 25 + 65;
-            }
+            char *bad_char = NULL;
+            do {
+                bad_char = strchr(s, forbidden_chars[x]);
+                if ( bad_char != NULL) {
+                    *bad_char = ((float) *bad_char / 127) * 25 + 65;
+                }
+            } while(bad_char != NULL);
         }
 
         if (drum) {
