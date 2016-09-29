@@ -246,8 +246,9 @@ typedef struct EMPTY_WHITE_ROOM {
     int stereo_mode;
 } EMPTY_WHITE_ROOM;
 
-#define MAX_WAITING  256
+#define forbidden_chars "\\/:*?\"<>|"
 
+#define MAX_WAITING  256
 
 #define CID(a, b, c, d)    (((d)<<24)+((c)<<16)+((b)<<8)+((a)))
 #define CID_RIFF  CID('R','I','F','F')
@@ -802,6 +803,12 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
         /* prettify the preset name */
         s = getname(sf_presets[pnum].achPresetName);
+        for (unsigned short x = 0; x<strlen(forbidden_chars); x++) {
+            char *bad_char = strchr(s, forbidden_chars[x]);
+            if ( bad_char != NULL) {
+                *bad_char = ((float) *bad_char / 127) * 25 + 65;
+            }
+        }
 
         if (drum) {
             if (!sample_bank->drumset_name[options->opt_drum_bank]) {
