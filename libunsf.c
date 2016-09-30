@@ -1,5 +1,5 @@
 /*
- * libunsf is a library that can beused to break up sound fonts into
+ * libunsf is a library that can be used to break up sound fonts into
  * GUS type patch files.
  *
  * license: cc0
@@ -8,7 +8,7 @@
  * unsf has waived all copyright and related or neighboring rights
  * to unsf.
  *
- * You should have received a copy of the CC0 legalcode along with this
+ * You should have received a copy of the CC0 legal code along with this
  * work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
  *
  */
@@ -245,8 +245,6 @@ typedef struct EMPTY_WHITE_ROOM {
     float volume;
     int stereo_mode;
 } EMPTY_WHITE_ROOM;
-
-#define forbidden_chars "\\/:*?\"<>|"
 
 #define MAX_WAITING  256
 
@@ -630,7 +628,7 @@ static void print_sf_string(UnSF_Options *options, FILE *f, const char *title, i
 }
 
 static char *getname(char *p) {
-    int i, j, e;
+    size_t i, j, e;
     static char buf[21];
     strncpy(buf, p, 20);
     buf[20] = 0;
@@ -658,6 +656,10 @@ static char *getname(char *p) {
         else if (buf[i] == ']') buf[i] = ' ';
         else if (buf[i] == '(') buf[i] = '-';
         else if (buf[i] == ')') buf[i] = ' ';
+        else if (buf[i] == '/') buf[i] = '_';
+        else if (buf[i] == ':') buf[i] = '_';
+        else if (buf[i] == '<') buf[i] = '_';
+        else if (buf[i] == '>') buf[i] = ' ';
     }
     for (i = 0; i < e; i++) {
         if (buf[i] == ' ') {
@@ -803,15 +805,6 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
 
         /* prettify the preset name */
         s = getname(sf_presets[pnum].achPresetName);
-        for (unsigned short x = 0; x<strlen(forbidden_chars); x++) {
-            char *bad_char = NULL;
-            do {
-                bad_char = strchr(s, forbidden_chars[x]);
-                if ( bad_char != NULL) {
-                    *bad_char = ((float) *bad_char / 127) * 25 + 65;
-                }
-            } while(bad_char != NULL);
-        }
 
         if (drum) {
             if (!sample_bank->drumset_name[options->opt_drum_bank]) {
@@ -951,7 +944,7 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                     /* find what sample we should use */
                     if ((igen_count > 0) &&
                         (igen[igen_count - 1].sfGenOper == SFGEN_sampleID)) {
-                        int i;
+                        int k;
 
                         sample = &sf_samples[igen[igen_count - 1].genAmount.wAmount];
 
@@ -964,10 +957,10 @@ static int grab_soundfont_banks(UnSF_Options *options, int sf_num_presets, sfPre
                         if (sample->sfSampleType & LINKED_SAMPLE) continue; /* linked */
 
                         s = sample->achSampleName;
-                        i = strlen(s) - 1;
+                        k = strlen(s) - 1;
 
-                        if (s[i] == 'L') sample->sfSampleType = LEFT_SAMPLE;
-                        if (s[i] == 'R') sample->sfSampleType = RIGHT_SAMPLE;
+                        if (s[k] == 'L') sample->sfSampleType = LEFT_SAMPLE;
+                        if (s[k] == 'R') sample->sfSampleType = RIGHT_SAMPLE;
 
                         /* prettify the sample name */
                         s = getname(sample->achSampleName);
