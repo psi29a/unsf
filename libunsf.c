@@ -23,7 +23,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifdef _WIN32
-#include <direct.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#elif defined(__OS2__)
+#define INCL_DOS
+#define INCL_DOSERRORS
+#include <os2.h>
 #include <io.h>
 #else
 #include <unistd.h>
@@ -39,7 +46,11 @@
 #define strtok_r unsf_strtok_r
 #include "strtok_r.h"
 #endif
-#endif /* _WIN32 */
+
+#elif defined(__WATCOMC__)
+#define strtok_r unsf_strtok_r
+#include "strtok_r.h"
+#endif
 
 #ifndef TRUE
 #define TRUE         1
@@ -624,7 +635,7 @@ static void print_sf_string(UnSF_Options *options, FILE *f, const char *title, i
         strcat(samplebank->cpyrt, buf);
     }
 
-    if (!options->opt_no_write) fprintf(options->cfg_fd, "# %-12s%s\n", title, buf);
+    if (!opt_no_write) fprintf(options->cfg_fd, "# %-12s%s\n", title, buf);
 }
 
 static char *getname(char *p) {
@@ -1025,8 +1036,19 @@ static char *unsf_concat(const char *s1, const char *s2) {
 
 #ifdef _WIN32
 static int sys_mkdir(const char *p) {
-    if (_mkdir(p) != -1) return 0;
-    if (errno == EEXIST) return 0;
+    if (CreateDirectory(p, NULL) != 0) return 0;
+    if (GetLastError() == ERROR_ALREADY_EXISTS) return 0;
+    return -1;
+}
+#elif defined(__OS2__)
+static int sys_mkdir(const char *p) {
+    FILESTATUS3 fs;
+    APIRET rc = DosCreateDir(p, NULL);
+    if (rc == NO_ERROR) return 0;
+    if (DosQueryPathInfo(p, FIL_STANDARD, &fs, sizeof(fs)) == NO_ERROR) {
+        if (fs.attrFile & FILE_DIRECTORY)
+            return 0;
+    }
     return -1;
 }
 #elif defined(__SOME_FOO_PLATFORM__)

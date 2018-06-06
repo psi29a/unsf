@@ -1,0 +1,64 @@
+# Makefile for OS/2 using Watcom compiler.
+#
+# wmake
+# - builds unsf.dll and its import lib (unsf.lib)
+#
+# wmake target=static
+# - builds the static library unsf_static.lib
+
+CFLAGS = -bt=os2 -bm -fp5 -fpi87 -mf -oeatxh -w4 -ei -j -zp8 -zq
+# -5s  :  Pentium stack calling conventions.
+# -5r  :  Pentium register calling conventions.
+CFLAGS+= -5s
+DLLFLAGS=-bd
+
+.SUFFIXES:
+.SUFFIXES: .obj .c
+
+DLLNAME=unsf.dll
+EXPNAME=unsf.exp
+LIBNAME=unsf.lib
+LIBSTATIC=unsf_static.lib
+EXE=unsf.exe
+EXE_STATIC=unsf_static.exe
+
+INCLUDES=-I.
+CFLAGS_LIB= $(CFLAGS) -DUNSF_BUILD
+CFLAGS_EXE= $(CFLAGS)
+!ifeq target static
+BLD_TARGET=$(LIBSTATIC) $(EXE_STATIC)
+!else
+CFLAGS_LIB+= $(DLLFLAGS)
+BLD_TARGET=$(DLLNAME) $(EXE)
+!endif
+
+OBJ=libunsf.obj
+EXE_OBJ=unsf.obj
+
+all: $(BLD_TARGET)
+
+# rely on symbol name, not ordinal: -irn switch of wlib is default, but -inn is not.
+$(DLLNAME): $(OBJ)
+	wlink NAM $@ SYSTEM os2v2_dll INITINSTANCE TERMINSTANCE OPTION MANYAUTODATA FIL {$(OBJ)} OPTION IMPF=$(EXPNAME)
+	wlib -q -b -n -c -pa -s -t -zld -ii -io -inn $(LIBNAME) +$(DLLNAME)
+
+$(LIBSTATIC): $(OBJ)
+	wlib -q -b -n -c -pa -s -t -zld -ii -io $@ $(OBJ)
+
+$(EXE): $(DLLNAME) $(EXE_OBJ)
+	wlink N $@ SYS OS2V2 LIBR {$(LIBNAME)} F {$(EXE_OBJ)}
+
+$(EXE_STATIC): $(LIBSTATIC) $(EXE_OBJ)
+	wlink N $@ SYS OS2V2 LIBR {$(LIBSTATIC)} F {$(EXE_OBJ)}
+
+# rules for library objs:
+.c.obj:
+	wcc386 $(CFLAGS_LIB) $(INCLUDES) -fo=$^@ $<
+# rules for exe objs:
+unsf.obj: unsf.c
+	wcc386 $(CFLAGS_EXE) $(INCLUDES) -fo=$^@ $<
+
+distclean: clean .symbolic
+	rm -f $(DLLNAME) $(EXPNAME) $(LIBNAME) $(LIBSTATIC) $(EXE) $(EXE_STATIC)
+clean: .symbolic
+	rm -f *.obj
