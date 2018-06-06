@@ -23,8 +23,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifdef _WIN32
-#include <direct.h>
-#include <io.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 #else
 #include <unistd.h>
 #endif
@@ -1025,8 +1027,8 @@ static char *unsf_concat(const char *s1, const char *s2) {
 
 #ifdef _WIN32
 static int sys_mkdir(const char *p) {
-    if (_mkdir(p) != -1) return 0;
-    if (errno == EEXIST) return 0;
+    if (CreateDirectory(p, NULL) != 0) return 0;
+    if (GetLastError() == ERROR_ALREADY_EXISTS) return 0;
     return -1;
 }
 #elif defined(__SOME_FOO_PLATFORM__)
