@@ -635,7 +635,7 @@ static void print_sf_string(UnSF_Options *options, FILE *f, const char *title, i
         strcat(samplebank->cpyrt, buf);
     }
 
-    if (!options->opt_no_write) fprintf(options->cfg_fd, "# %-12s%s\n", title, buf);
+    if (!opt_no_write) fprintf(options->cfg_fd, "# %-12s%s\n", title, buf);
 }
 
 static char *getname(char *p) {
