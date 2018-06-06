@@ -23,15 +23,15 @@ License: CC0 - 1.0
 Changelog
 =========
 
-UnSF 1.1 (20160930)
+UnSF 1.1 (20180606)
 -------------------
  * Split unsf.c into unsf.c and libunsf.c so that the later can be used
   in other programs such as unsf.c
  * Added support for outputing files to a specific directory.
  * Fixed problems found by Coverity and Clang's static analyzer.
- * Fixed "divingly" huge total memory allocation.
- * Fixed file naming problems with foribidden characters are NTFS/FAT.
- * Support MSVC, MINGW, GCC and Clang.
+ * Fixed divinely huge total memory allocation.
+ * Fixed file naming problems with forbidden characters on NTFS/FAT.
+ * Support MSVC, MINGW, GCC, Clang, and Watcom.
 
 UnSF 1.0 (20160105)
 -------------------
