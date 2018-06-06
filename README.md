@@ -29,9 +29,9 @@ UnSF 1.1 (20160930)
   in other programs such as unsf.c
  * Added support for outputing files to a specific directory.
  * Fixed problems found by Coverity and Clang's static analyzer.
- * Fixed "divingly" huge total memory allocation.
+ * Fixed insanely huge total memory allocation.
  * Fixed file naming problems with foribidden characters are NTFS/FAT.
- * Support MSVC, MINGW, GCC and Clang.
+ * Support MSVC, MINGW, GCC, Clang, and Watcom.
 
 UnSF 1.0 (20160105)
 -------------------
