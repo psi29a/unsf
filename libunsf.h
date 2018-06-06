@@ -26,6 +26,8 @@
  */
 # elif defined(SYM_LDSCOPE)	/* __SUNPRO_C >= 0x550 */
 #  define UNSF_SYMBOL __global
+# elif defined(__OS2__) && defined(__WATCOMC__) && defined(__SW_BD)
+#  define UNSF_SYMBOL __declspec(dllexport)
 # else
 #  define UNSF_SYMBOL
 # endif
