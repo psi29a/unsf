@@ -30,7 +30,7 @@ UnSF 1.1 (20160930)
  * Added support for outputing files to a specific directory.
  * Fixed problems found by Coverity and Clang's static analyzer.
  * Fixed insanely huge total memory allocation.
- * Fixed file naming problems with foribidden characters are NTFS/FAT.
+ * Fixed file naming problems with forbidden characters on NTFS/FAT.
  * Support MSVC, MINGW, GCC, Clang, and Watcom.
 
 UnSF 1.0 (20160105)
