@@ -7,6 +7,7 @@
 # - builds the static library unsf_static.lib
 
 CFLAGS = -bt=os2 -bm -fp5 -fpi87 -mf -oeatxh -w4 -ei -j -zp8 -zq
+CFLAGS+= -DNDEBUG
 # -5s  :  Pentium stack calling conventions.
 # -5r  :  Pentium register calling conventions.
 CFLAGS+= -5s

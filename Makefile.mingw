@@ -1,3 +1,5 @@
+# GNU Makefile for Win32/Win64 using MinGW/MinGW-w64
+#
 # to cross-compile, e.g.:
 # make CROSS=i686-w64-mingw32
 # make CROSS=i686-pc-mingw32
@@ -16,6 +18,7 @@ RANLIB=$(CROSS)-ranlib
 endif
 
 CFLAGS =-Wall -std=gnu99 -g -O2
+CFLAGS+=-DNDEBUG
 ARFLAGS=crv
 CFLAGS_LIB =-DUNSF_BUILD=1
 # symbol visibility:

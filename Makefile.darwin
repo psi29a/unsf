@@ -1,3 +1,5 @@
+# GNU Makefile for Mac OS X
+#
 # to cross-compile, e.g.:
 # make CROSS=x86_64-apple-darwin9
 # make CROSS=i686-apple-darwin9
@@ -16,6 +18,7 @@ RANLIB=$(CROSS)-ranlib
 endif
 
 CFLAGS =-Wall -std=gnu99 -O2
+CFLAGS+=-DNDEBUG
 ARFLAGS=crv
 CFLAGS_LIB =-DUNSF_BUILD=1
 CFLAGS_LIB+=-fPIC -fno-common
