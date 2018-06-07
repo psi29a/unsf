@@ -1,5 +1,3 @@
-# WildMIDI pkg-config file
-
 prefix=@UNSFLIB_PREFIX@
 exec_prefix=${prefix}
 libdir=${exec_prefix}/@UNSFLIB_LIBDIR@
