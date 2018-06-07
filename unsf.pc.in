@@ -8,7 +8,7 @@ includedir=${exec_prefix}/include
 Name: UnSF
 Description: UnSF converts soundfonts into gus patch files
 Version: @UNSF_VERSION@
-URL: https://www.mindwerks.net/projects/wildmidi/
+URL: https://github.com/psi29a/unsf.git
 
 Libs: -L${libdir} -lunsf
 Libs.private: -lm
