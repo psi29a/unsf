@@ -1,11 +1,15 @@
-prefix=@prefix@
-exec_prefix=@exec_prefix@
-libdir=@libdir@
-includedir=@includedir@
+# WildMIDI pkg-config file
+
+prefix=@UNSFLIB_PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/@UNSFLIB_LIBDIR@
+includedir=${exec_prefix}/include
 
 Name: UnSF
 Description: UnSF converts soundfonts into gus patch files
-Requires: @PKG_CONFIG_REQUIRES@
-Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -l@LIBNAME@ @PKG_CONFIG_LIBS@
-Cflags: -I${includedir} @PKG_CONFIG_CFLAGS@
+Version: @UNSF_VERSION@
+URL: https://www.mindwerks.net/projects/wildmidi/
+
+Libs: -L${libdir} -lunsf
+Libs.private: -lm
+Cflags: -I${includedir}
