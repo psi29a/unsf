@@ -21,26 +21,13 @@ INCLUDE(TestBigEndian)
 
 # Set a default build type if none was specified
 IF (NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
-    MESSAGE(STATUS "Setting build type to 'Debug' as none was specified.")
-    SET(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
+    MESSAGE(STATUS "Setting build type to 'Release' as none was specified.")
+    SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
     # Set the possible values of build type for cmake-gui
     SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 ENDIF ()
 SET(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 MESSAGE(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-
-# Platform specific defines
-IF (UNIX)
-    # allow 'large' files in 32 bit builds
-    ADD_DEFINITIONS(
-            -D_LARGEFILE_SOURCE
-            -D_FILE_OFFSET_BITS=64
-            -D_LARGE_FILES
-    )
-    IF (NOT APPLE)
-        FIND_LIBRARY(M_LIBRARY m REQUIRED)
-    ENDIF()
-ENDIF()
 
 # Usage of RPATH for macOS is enabled by default; this just suppresses the CMP0042
 # warning when building dylib.
@@ -115,6 +102,10 @@ IF (CMAKE_C_COMPILER_ID MATCHES "SunPro")
     ENDIF ()
     SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS}")
 ENDIF ()
+
+IF (UNIX AND NOT APPLE)
+    FIND_LIBRARY(M_LIBRARY m REQUIRED)
+ENDIF()
 
 TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 
