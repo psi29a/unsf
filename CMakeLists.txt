@@ -1,192 +1,306 @@
+PROJECT(unsf C)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-PROJECT(UnSF)
+# UnSF version
+SET(VERSION_MAJOR 1)
+SET(VERSION_MINOR 1)
+SET(VERSION_RELEASE 0)
+SET(UNSF_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_RELEASE}")
 
-INCLUDE(CheckLibraryExists)
-INCLUDE(GNUInstallDirs)
+# Library versions
+SET(SOVERSION 1)
+SET(VERSION 1.1.0)
 
-IF(NOT LIBTYPE)
-    SET(LIBTYPE SHARED)
-ENDIF()
+# Find Macros
+SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
-SET(LIB_MAJOR_VERSION "1")
-SET(LIB_MINOR_VERSION "1")
-SET(LIB_REVISION "0")
-SET(LIB_VERSION "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_REVISION}")
+INCLUDE(CheckCCompilerFlag)
+INCLUDE(CheckCSourceCompiles)
+INCLUDE(CheckIncludeFile)
+INCLUDE(TestBigEndian)
 
-IF(NOT CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
-        "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
-        FORCE)
-ENDIF()
-
-IF(NOT CMAKE_DEBUG_POSTFIX)
-    SET(CMAKE_DEBUG_POSTFIX "" CACHE STRING
-        "Library postfix for debug builds. Normally left blank."
-        FORCE)
-ENDIF()
-
-# Some systems need libm for some of the following math functions to work
-CHECK_LIBRARY_EXISTS(m pow "" HAVE_LIBM)
-IF(HAVE_LIBM)
-    SET(EXTRA_LIBS m ${EXTRA_LIBS})
-    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} m)
-ENDIF()
-
-if(DEFINED SHARE_INSTALL_DIR)
-    message(WARNING "SHARE_INSTALL_DIR is deprecated.  Use the variables provided by the GNUInstallDirs module instead")
-    set(CMAKE_INSTALL_DATADIR "${SHARE_INSTALL_DIR}")
-endif()
-
-if(DEFINED LIB_SUFFIX)
-    message(WARNING "LIB_SUFFIX is deprecated.  Use the variables provided by the GNUInstallDirs module instead")
-endif()
-
-
-SET(LIBNAME "unsf")
-IF(WIN32)
-    ADD_DEFINITIONS("-D_WIN32 -D_WIN32_WINNT=0x0502")
-
-    # This option is mainly for static linking UnSF into another project
-    # that already defines the IDs. It is up to that project to ensure all
-    # required IDs are defined.
-    OPTION(UNSF_NO_UID_DEFS "Do not define GUIDs, IIDs, CLSIDs, or PropertyKeys" OFF)
-
-    IF(MINGW)
-        OPTION(UNSF_BUILD_IMPORT_LIB "Build an import .lib using dlltool (requires sed)" ON)
-        IF(NOT DLLTOOL)
-            IF(HOST)
-                SET(DLLTOOL "${HOST}-dlltool")
-            ELSE()
-                SET(DLLTOOL "dlltool")
-            ENDIF()
-        ENDIF()
-    ENDIF()
-ENDIF()
-
-SET(EXTRA_CFLAGS "")
-IF(MSVC)
-    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
-    ADD_DEFINITIONS(-D_CRT_NONSTDC_NO_DEPRECATE)
-    SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} /wd4098")
-
-    OPTION(FORCE_STATIC_VCRT "Force /MT for static VC runtimes" OFF)
-    IF(FORCE_STATIC_VCRT)
-        FOREACH(flag_var
-                CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
-                CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO)
-            IF(${flag_var} MATCHES "/MD")
-                STRING(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-            ENDIF()
-        ENDFOREACH(flag_var)
-    ENDIF()
-ELSE()
-    SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Winline -Wall")
-    #CHECK_C_COMPILER_FLAG(-Wextra HAVE_W_EXTRA)
-    IF(HAVE_W_EXTRA)
-        SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Wextra")
-    ENDIF()
-
-    IF(UNSF_WERROR)
-        SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Werror")
-    ENDIF()
-
-    # We want RelWithDebInfo to actually include debug stuff (define _DEBUG
-    # instead of NDEBUG)
-    FOREACH(flag_var  CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-        IF(${flag_var} MATCHES "-DNDEBUG")
-            STRING(REGEX REPLACE "-DNDEBUG" "-D_DEBUG" ${flag_var} "${${flag_var}}")
-        ENDIF()
-    ENDFOREACH()
-
-    #CHECK_C_SOURCE_COMPILES("int foo() __attribute__((destructor));
-    #                         int main() {return 0;}" HAVE_GCC_DESTRUCTOR)
-
-    option(UNSF_STATIC_LIBGCC "Force -static-libgcc for static GCC runtimes" OFF)
-    if(UNSF_STATIC_LIBGCC)
-        set(OLD_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
-        set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} -static-libgcc)
-        check_c_source_compiles(
-"#include <stdlib.h>
-int main()
-{
-    return 0;
-}"
-            HAVE_STATIC_LIBGCC_SWITCH
-        )
-        if(HAVE_STATIC_LIBGCC_SWITCH)
-            set(EXTRA_LIBS ${EXTRA_LIBS} -static-libgcc)
-        endif()
-        set(CMAKE_REQUIRED_LIBRARIES ${OLD_REQUIRED_LIBRARIES})
-        unset(OLD_REQUIRED_LIBRARIES)
-    endif()
-ENDIF()
-
-# create our pkg-config: unsf.pc
-SET(prefix ${CMAKE_INSTALL_PREFIX})
-SET(exec_prefix "\${prefix}")
-SET(libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
-SET(bindir "\${exec_prefix}/${CMAKE_INSTALL_BINDIR}")
-SET(includedir "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
-SET(PACKAGE_VERSION "${LIB_VERSION}")
-
-CONFIGURE_FILE(
-        "${UnSF_SOURCE_DIR}/unsf.pc.in"
-        "${UnSF_BINARY_DIR}/unsf.pc"
-        @ONLY)
-
-# build library
-SET(UNSF_OBJS libunsf.c)
-
-IF(LIBTYPE STREQUAL "STATIC")
-    ADD_LIBRARY(${LIBNAME} STATIC ${UNSF_OBJS})
-    IF(MSVC)
-        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${LIBNAME}.lib")
-    ELSE()
-        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.a")
-    ENDIF()
-ELSE()
-    ADD_LIBRARY(${LIBNAME} SHARED ${UNSF_OBJS})
-    IF(MSVC)
-        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}\\${LIBNAME}.dll")
-    ELSE()
-        SET(libUnSF_LOCATION "${CMAKE_BINARY_DIR}/lib${LIBNAME}.so")
-    ENDIF()
-ENDIF()
-
-
-if ( MSVC )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_BINARY_DIR} )
-    SET_TARGET_PROPERTIES( ${LIBNAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR} )
-endif ( MSVC )
-
-add_definitions(-DUNSF_STATIC)
-
-SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY COMPILE_FLAGS ${EXTRA_CFLAGS})
-
-IF(WIN32 AND UNSF_NO_UID_DEFS)
-    SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY COMPILE_DEFINITIONS NO_UID_DEFS)
-ELSEIF(NOT WIN32)
-    SET_PROPERTY(TARGET ${LIBNAME} APPEND PROPERTY POSITION_INDEPENDENT_CODE TRUE)
-ENDIF()
-
-SET_TARGET_PROPERTIES(${LIBNAME} PROPERTIES VERSION ${LIB_VERSION}
-        SOVERSION ${LIB_MAJOR_VERSION})
-
-# build executable
-IF (MSVC)
-    SET(GETOPT getopt.c)
-ELSE ()
-    SET(GETOPT)
+# Set a default build type if none was specified
+IF (NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+    MESSAGE(STATUS "Setting build type to 'Release' as none was specified.")
+    SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    # Set the possible values of build type for cmake-gui
+    SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 ENDIF ()
-ADD_EXECUTABLE(sf2pat unsf.c libunsf.h ${GETOPT})
-ADD_DEPENDENCIES(sf2pat ${LIBNAME})
-TARGET_LINK_LIBRARIES(sf2pat ${libUnSF_LOCATION} ${EXTRA_LIBS})
+SET(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
+MESSAGE(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+
+# Usage of RPATH for macOS is enabled by default; this just suppresses the CMP0042
+# warning when building dylib.
+IF (POLICY CMP0042)
+    CMAKE_POLICY(SET CMP0042 NEW)
+ENDIF ()
+
+IF (OPENBSD)  # Set RPATH for OpenBSD so unsf can find libunsf.so
+    # use, i.e. don't skip the full RPATH for the build tree
+    SET(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+    # when building, don't use the install RPATH already
+    # (but later on when installing)
+    SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+    SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+    # add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+    # the RPATH to be used when installing, but only if it's not a system directory
+    LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+    IF ("${isSystemDir}" STREQUAL "-1")
+        SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    ENDIF ()
+ENDIF (OPENBSD)
+
+IF (WIN32)
+    ADD_DEFINITIONS(
+        -DWIN32_LEAN_AND_MEAN
+        -D_CRT_SECURE_NO_WARNINGS
+    )
+ENDIF()
+
+# Compiler specific settings
+IF (CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+    ADD_DEFINITIONS(
+        -Wall
+        -fno-common
+    )
+
+    IF (NOT WIN32 AND NOT CYGWIN)
+        SET(OLD_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+        SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS} -Werror")
+        CHECK_C_SOURCE_COMPILES("int foo(void) __attribute__((visibility(\"default\")));
+                                 int main(void) {return 0;}" HAVE_VISIBILITY_DEFAULT)
+        IF (HAVE_VISIBILITY_DEFAULT)
+            CHECK_C_COMPILER_FLAG(-fvisibility=hidden HAVE_VISIBILITY_HIDDEN)
+        ENDIF ()
+        SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS}")
+    ENDIF ()
+
+    IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        ADD_DEFINITIONS(-ggdb3 -O0)
+    ELSEIF (CMAKE_BUILD_TYPE STREQUAL "Release")
+        ADD_DEFINITIONS(-O2)
+    ENDIF ()
+ENDIF ()
+
+IF (CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    SET(OLD_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+    SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS} -xldscope=hidden")
+    # __SUNPRO_C >= 0x590
+    #   CHECK_C_SOURCE_COMPILES("int foo(void) __attribute__((visibility(\"default\")));
+    #                            int main(void) {return 0;}" HAVE_VISIBILITY_DEFAULT)
+    # __SUNPRO_C >= 0x550
+    CHECK_C_SOURCE_COMPILES("__global int foo(void);
+                             int main(void) {return 0;}" HAVE_LDSCOPE_GLOBAL)
+    IF (HAVE_LDSCOPE_GLOBAL)# OR HAVE_VISIBILITY_DEFAULT
+        SET(HAVE_LDSCOPE_HIDDEN 1)
+    ENDIF ()
+    SET(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS}")
+ENDIF ()
+
+IF (UNIX AND NOT APPLE)
+    FIND_LIBRARY(M_LIBRARY m REQUIRED)
+ENDIF()
+
+TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
+
+# General setup
+INCLUDE_DIRECTORIES(BEFORE "${CMAKE_SOURCE_DIR}/include")
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${unsf_BINARY_DIR}")
+
+# build setup
+SET(unsf_library_SRCS
+    libunsf.c
+)
+SET(unsf_library_HDRS
+    libunsf.h
+    strtok_r.h
+)
+
+IF (MSVC)
+ SET(GETOPT getopt.c)
+ELSE()
+ SET(GETOPT)
+ENDIF()
+SET(unsf_executable_SRCS
+  ${GETOPT}
+    unsf.c
+)
+
+# set our target paths
+SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+SET(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+
+# set our library names
+IF (WIN32 AND NOT CMAKE_COMPILER_IS_MINGW) # windows uses *.lib for both static and dynamic, workaround
+    SET(LIBRARY_DYN_NAME "unsf")
+    SET(LIBRARY_STATIC_NAME "unsf_static")
+ELSE () # everyone else uses .a and .so
+    SET(LIBRARY_DYN_NAME "unsf")
+    SET(LIBRARY_STATIC_NAME "unsf")
+ENDIF ()
+
+# static library
+ADD_LIBRARY(libunsf_static STATIC
+    ${unsf_library_SRCS}
+    ${unsf_library_HDRS}
+)
+TARGET_LINK_LIBRARIES(libunsf_static
+    ${M_LIBRARY}
+)
+SET_TARGET_PROPERTIES(libunsf_static PROPERTIES
+    OUTPUT_NAME ${LIBRARY_STATIC_NAME} CLEAN_DIRECT_OUTPUT 1
+    COMPILE_DEFINITIONS UNSF_BUILD
+)
+
+# dynamic library
+ADD_LIBRARY(libunsf_dynamic SHARED
+    ${unsf_library_SRCS}
+    ${unsf_library_HDRS}
+)
+TARGET_LINK_LIBRARIES(libunsf_dynamic
+    ${M_LIBRARY}
+)
+SET_TARGET_PROPERTIES(libunsf_dynamic PROPERTIES
+    SOVERSION ${SOVERSION}
+    VERSION ${VERSION}
+    OUTPUT_NAME ${LIBRARY_DYN_NAME} CLEAN_DIRECT_OUTPUT 1
+)
+IF (WIN32)
+    SET_TARGET_PROPERTIES(libunsf_dynamic PROPERTIES
+        DEFINE_SYMBOL DLL_EXPORT
+        COMPILE_DEFINITIONS UNSF_BUILD
+    )
+ELSEIF (HAVE_VISIBILITY_HIDDEN AND HAVE_VISIBILITY_DEFAULT) # GCC, Clang
+    SET_TARGET_PROPERTIES(libunsf_dynamic PROPERTIES
+        COMPILE_DEFINITIONS "UNSF_BUILD;SYM_VISIBILITY"
+        COMPILE_FLAGS "-fvisibility=hidden"
+    )
+#ELSEIF (HAVE_LDSCOPE_HIDDEN AND HAVE_VISIBILITY_DEFAULT) # SunPro (__SUNPRO_C >= 0x590)
+#   SET_TARGET_PROPERTIES(libunsf_dynamic PROPERTIES
+#       COMPILE_DEFINITIONS "UNSF_BUILD;SYM_VISIBILITY"
+#       COMPILE_FLAGS "-xldscope=hidden"
+#   )
+ELSEIF (HAVE_LDSCOPE_HIDDEN AND HAVE_LDSCOPE_GLOBAL) # SunPro (__SUNPRO_C >= 0x550)
+    SET_TARGET_PROPERTIES(libunsf_dynamic PROPERTIES
+        COMPILE_DEFINITIONS "UNSF_BUILD;SYM_LDSCOPE"
+        COMPILE_FLAGS "-xldscope=hidden"
+    )
+ELSE ()
+    SET_TARGET_PROPERTIES(libunsf_dynamic PROPERTIES
+        COMPILE_DEFINITIONS UNSF_BUILD
+    )
+ENDIF ()
+
+# Set our default and then look at the possible locations
+SET(UNSFLIB "${CMAKE_BINARY_DIR}/lib${LIBRARY_DYN_NAME}.so")
+SET(UNSFLIBSTATIC "${CMAKE_BINARY_DIR}/lib${LIBRARY_STATIC_NAME}.a")
+
+# MS Visual Studio
+IF (MSVC)
+    SET(UNSFLIB "${CMAKE_BINARY_DIR}\\${CMAKE_BUILD_TYPE}\\${LIBRARY_DYN_NAME}.lib")
+    SET(UNSFLIBSTATIC "${CMAKE_BINARY_DIR}\\${CMAKE_BUILD_TYPE}\\${LIBRARY_STATIC_NAME}.lib")
+ENDIF (MSVC)
+
+# MinGW or MinGW-w64
+IF (CMAKE_COMPILER_IS_MINGW)
+    SET(UNSFLIB "${CMAKE_BINARY_DIR}/lib${LIBRARY_DYN_NAME}.dll.a")
+    SET(UNSFDLL "${CMAKE_BINARY_DIR}/lib${LIBRARY_DYN_NAME}.dll")
+    SET(UNSFLIBSTATIC "${CMAKE_BINARY_DIR}/lib${LIBRARY_STATIC_NAME}.a")
+ENDIF (CMAKE_COMPILER_IS_MINGW)
+
+# Apple's Xcode
+IF (CMAKE_GENERATOR STREQUAL "Xcode")
+    SET(UNSFLIB "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib${LIBRARY_DYN_NAME}.dylib")
+    SET(UNSFLIBSTATIC "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib${LIBRARY_STATIC_NAME}.a")
+ELSEIF (APPLE) # Apple's CLI default
+    SET(UNSFLIB "${CMAKE_BINARY_DIR}/lib${LIBRARY_DYN_NAME}.dylib")
+    SET(UNSFLIBSTATIC "${CMAKE_BINARY_DIR}/lib${LIBRARY_STATIC_NAME}.a")
+ENDIF (CMAKE_GENERATOR STREQUAL "Xcode")
+
+# unsf.exe
+ADD_EXECUTABLE(unsf
+    ${unsf_executable_SRCS}
+    ${unsf_executable_HDRS}
+)
+ADD_DEPENDENCIES(unsf libunsf_dynamic)
+TARGET_LINK_LIBRARIES(unsf
+    ${UNSFLIB}
+)
+
+# unsf-static.exe
+ADD_EXECUTABLE(unsf-static
+    ${unsf_executable_SRCS}
+)
+ADD_DEPENDENCIES(unsf-static libunsf_static)
+SET_TARGET_PROPERTIES(unsf-static PROPERTIES
+    COMPILE_DEFINITIONS UNSF_STATIC
+)
+TARGET_LINK_LIBRARIES(unsf-static
+    ${UNSFLIBSTATIC}
+    ${M_LIBRARY}
+)
+
+# convenience variables
+SET(UNSFLIB_INSTALLDIR "lib${LIB_SUFFIX}")
+SET(UNSFDLL_INSTALLDIR "bin${LIB_SUFFIX}")
+
+# add multiarch folder, if needed
+IF (CMAKE_LIBRARY_ARCHITECTURE)
+    SET(UNSFLIB_INSTALLDIR "${UNSFLIB_INSTALLDIR}/${CMAKE_LIBRARY_ARCHITECTURE}")
+    SET(UNSFDLL_INSTALLDIR "${UNSFDLL_INSTALLDIR}/${CMAKE_LIBRARY_ARCHITECTURE}")
+ENDIF ()
+
+# prepare pkg-config file
+SET(UNSFLIB_PREFIX "${CMAKE_INSTALL_PREFIX}")
+SET(UNSFLIB_LIBDIR "${UNSFLIB_INSTALLDIR}")
+CONFIGURE_FILE("unsf.pc.in" "${CMAKE_BINARY_DIR}/unsf.pc" @ONLY)
+
+# install target (*nix OSes)
+IF (UNIX AND NOT APPLE)
+    INSTALL(TARGETS libunsf_static DESTINATION ${UNSFLIB_INSTALLDIR})
+    INSTALL(TARGETS unsf-static DESTINATION bin)
+    INSTALL(TARGETS libunsf_dynamic DESTINATION ${UNSFLIB_INSTALLDIR})
+    INSTALL(TARGETS unsf DESTINATION bin)
+    INSTALL(FILES ${CMAKE_BINARY_DIR}/unsf.pc DESTINATION "${UNSFLIB_INSTALLDIR}/pkgconfig")
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/include/libunsf.h DESTINATION include)
+ENDIF (UNIX AND NOT APPLE)
+
+# install target (Windows: MinGW or MinGW-w64)
+IF (WIN32 AND CMAKE_COMPILER_IS_MINGW)
+    IF ("${CMAKE_INSTALL_PREFIX}" STREQUAL "")
+        MESSAGE("INSTALL PREFIX IS EMPTY")
+        SET(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/unsf_lib" CACHE STRING "Install Prefix" FORCE)
+        MESSAGE("INSTALL PREFIX NOW: ${CMAKE_INSTALL_PREFIX}")
+    ENDIF()
+    INSTALL(TARGETS libunsf_static DESTINATION ${UNSFLIB_INSTALLDIR})
+    INSTALL(TARGETS unsf-static DESTINATION bin)
+    INSTALL(FILES ${UNSFLIB} DESTINATION ${UNSFLIB_INSTALLDIR})
+    INSTALL(FILES ${UNSFDLL} DESTINATION ${UNSFDLL_INSTALLDIR})
+    INSTALL(TARGETS unsf DESTINATION bin)
+    INSTALL(FILES ${CMAKE_BINARY_DIR}/unsf.pc DESTINATION "${UNSFLIB_INSTALLDIR}/pkgconfig")
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/include/libunsf.h DESTINATION include)
+ENDIF (WIN32 AND CMAKE_COMPILER_IS_MINGW)
+
+IF (WIN32 AND MSVC)
+    foreach (OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+        STRING(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
+        SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} "$(SolutionDir)$(Configuration)")
+        SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} "$(ProjectDir)$(Configuration)")
+    endforeach (OUTPUTCONFIG)
+
+    SET_TARGET_PROPERTIES(unsf PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:CONSOLE")
+    SET_TARGET_PROPERTIES(unsf PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:CONSOLE")
+    TARGET_COMPILE_DEFINITIONS(unsf PRIVATE $<$<CONFIG:Release>:_CONSOLE>)
+    TARGET_COMPILE_DEFINITIONS(unsf PRIVATE $<$<CONFIG:MinSizeRel>:_CONSOLE>)
+
+    SET_TARGET_PROPERTIES(unsf-static PROPERTIES LINK_FLAGS_RELEASE "/SUBSYSTEM:CONSOLE")
+    SET_TARGET_PROPERTIES(unsf-static PROPERTIES LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:CONSOLE")
+    TARGET_COMPILE_DEFINITIONS(unsf-static PRIVATE $<$<CONFIG:Release>:_CONSOLE>)
+    TARGET_COMPILE_DEFINITIONS(unsf-static PRIVATE $<$<CONFIG:MinSizeRel>:_CONSOLE>)
+ENDIF ()
