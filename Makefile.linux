@@ -4,9 +4,13 @@ CC=gcc
 AS=as
 AR=ar
 RANLIB=ranlib
-
-CFLAGS =-Wall -std=gnu99 -g -O2
+# -std=gnu99
+CFLAGS =-Wall -g -std=gnu89 -O2
 CFLAGS+=-DNDEBUG
+CFLAGS+=-DHAVE_STRTOK_R
+# for big endian systems:
+#CFLAGS+=-DWORDS_BIGENDIAN
+
 CFLAGS_LIB =-DUNSF_BUILD=1
 #CFLAGS_LIB+=-fPIC -DPIC
 # symbol visibility:

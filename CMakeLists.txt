@@ -17,6 +17,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckIncludeFile)
+INCLUDE(CheckFunctionExists)
 INCLUDE(TestBigEndian)
 
 # Set a default build type if none was specified
@@ -108,6 +109,14 @@ IF (UNIX AND NOT APPLE)
 ENDIF()
 
 TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
+IF (WORDS_BIGENDIAN)
+    ADD_DEFINITIONS(-DWORDS_BIGENDIAN)
+ENDIF()
+
+check_function_exists(strtok_r HAVE_STRTOK_R)
+IF (HAVE_STRTOK_R)
+    ADD_DEFINITIONS(-DHAVE_STRTOK_R)
+ENDIF()
 
 # General setup
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_SOURCE_DIR}/include")
