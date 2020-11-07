@@ -30,6 +30,22 @@ extern char *optarg;
 extern int optind, opterr, optopt;
 #endif
 
+static char *fix_outdir(const char *src) {
+    size_t len = strlen(src);
+    char *buf = (char *) calloc(1, len + 2);
+    if (!buf) return NULL;
+    if (!len) return buf;
+    memcpy(buf, src, len);
+    if (src[len-1] == '/' || src[len-1] == '\\')
+        return buf;
+#if defined(_WIN32)||defined(__OS2__)
+    buf[len] = '\\';
+#else
+    buf[len] = '/';
+#endif
+    return buf;
+}
+
 int main(int argc, char *argv[]) {
     int i, c;
     char *inname;
@@ -108,7 +124,7 @@ int main(int argc, char *argv[]) {
         else if (options.basename[i] == '#') options.basename[i] = '_';
     }
 
-
+    options.output_directory = fix_outdir(options.output_directory);
     options.opt_soundfont = argv[optind];
 
     printf("Reading %s\n", options.opt_soundfont);
@@ -118,6 +134,7 @@ int main(int argc, char *argv[]) {
 
     if (options.basename) free(options.basename);
     if (!options.opt_no_write && options.cfg_fd) fclose(options.cfg_fd);
+    free(options.output_directory);
     printf("Finished!\n");
 
     return 0;
