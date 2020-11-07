@@ -40,17 +40,17 @@ all: $(BLD_TARGET)
 
 # rely on symbol name, not ordinal: -irn switch of wlib is default, but -inn is not.
 $(DLLNAME): $(OBJ)
-	wlink NAM $@ SYSTEM os2v2_dll INITINSTANCE TERMINSTANCE OPTION MANYAUTODATA FIL {$(OBJ)} OPTION IMPF=$(EXPNAME)
+	wlink NAM $@ SYSTEM os2v2_dll INITINSTANCE TERMINSTANCE OPTION QUIET OPTION MANYAUTODATA FIL {$(OBJ)} OPTION IMPF=$(EXPNAME)
 	wlib -q -b -n -c -pa -s -t -zld -ii -io -inn $(LIBNAME) +$(DLLNAME)
 
 $(LIBSTATIC): $(OBJ)
 	wlib -q -b -n -c -pa -s -t -zld -ii -io $@ $(OBJ)
 
 $(EXE): $(DLLNAME) $(EXE_OBJ)
-	wlink N $@ SYS OS2V2 LIBR {$(LIBNAME)} F {$(EXE_OBJ)}
+	wlink N $@ SYS OS2V2 OP QUIET LIBR {$(LIBNAME)} F {$(EXE_OBJ)}
 
 $(EXE_STATIC): $(LIBSTATIC) $(EXE_OBJ)
-	wlink N $@ SYS OS2V2 LIBR {$(LIBSTATIC)} F {$(EXE_OBJ)}
+	wlink N $@ SYS OS2V2 OP QUIET LIBR {$(LIBSTATIC)} F {$(EXE_OBJ)}
 
 # rules for library objs:
 .c.obj:

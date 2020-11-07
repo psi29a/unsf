@@ -37,19 +37,13 @@
 #endif
 
 #include "libunsf.h"
-
-#ifdef _WIN32
-#define strdup _strdup
-#if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#define strtok_r strtok_s
-#else
+#ifndef HAVE_STRTOK_R
 #define strtok_r unsf_strtok_r
 #include "strtok_r.h"
 #endif
 
-#elif defined(__WATCOMC__)
-#define strtok_r unsf_strtok_r
-#include "strtok_r.h"
+#ifdef _WIN32
+#define strdup _strdup
 #endif
 
 #ifndef TRUE
@@ -194,7 +188,7 @@ typedef struct sfPresetBag {
 
 /* SoundFont preset generators */
 typedef struct rangesType {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifndef WORDS_BIGENDIAN
     unsigned char byLo;
     unsigned char byHi;
 #else
